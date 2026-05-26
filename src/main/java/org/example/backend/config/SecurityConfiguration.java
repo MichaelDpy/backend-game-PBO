@@ -40,13 +40,7 @@ public class SecurityConfiguration {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Endpoint publik — tidak butuh token
-                .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/auth/register").permitAll()
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/ws/**").permitAll()
-                // Semua endpoint lain butuh token
-                .requestMatchers("/api/**").authenticated()
+                // Semua endpoint publik — login opsional
                 .anyRequest().permitAll()
             )
             .headers(headers -> headers

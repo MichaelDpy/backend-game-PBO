@@ -33,6 +33,10 @@ public class Player extends BaseEntity {
     @Column
     private String sessionId;
 
+    /** Username akun yang terhubung (null jika guest) */
+    @Column
+    private String accountUsername;
+
     //Stats permanen (disimpan ke DB)
     @Column(nullable = false)
     private int totalGamesPlayed = 0;
@@ -108,6 +112,9 @@ public class Player extends BaseEntity {
 
     public String getSessionId() { return sessionId; }
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
+
+    public String getAccountUsername() { return accountUsername; }
+    public void setAccountUsername(String accountUsername) { this.accountUsername = accountUsername; }
 
     public int getTotalGamesPlayed() { return totalGamesPlayed; }
     public void setTotalGamesPlayed(int totalGamesPlayed) { this.totalGamesPlayed = totalGamesPlayed; }

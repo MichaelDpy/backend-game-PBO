@@ -27,6 +27,28 @@ public class UserAccount extends BaseEntity {
     @Column(nullable = false)
     private MowerColor lastColor = MowerColor.RED;
 
+    // ---- Stats permanen ----
+    @Column(nullable = false)
+    private int totalGamesPlayed = 0;
+
+    @Column(nullable = false)
+    private int totalWins = 0;
+
+    @Column(nullable = false)
+    private int totalLosses = 0;
+
+    @Column(nullable = false)
+    private int totalQuizAnswered = 0;
+
+    @Column(nullable = false)
+    private int totalQuizCorrect = 0;
+
+    @Column(nullable = false)
+    private int totalGrassCut = 0;
+
+    @Column(nullable = false)
+    private int totalRoundsPlayed = 0;
+
     // Required by JPA
     public UserAccount() {}
 
@@ -44,4 +66,25 @@ public class UserAccount extends BaseEntity {
 
     public MowerColor getLastColor() { return lastColor; }
     public void setLastColor(MowerColor lastColor) { this.lastColor = lastColor; }
+
+    public int getTotalGamesPlayed() { return totalGamesPlayed; }
+    public void setTotalGamesPlayed(int v) { this.totalGamesPlayed = v; }
+
+    public int getTotalWins() { return totalWins; }
+    public void setTotalWins(int v) { this.totalWins = v; }
+
+    public int getTotalLosses() { return totalLosses; }
+    public void setTotalLosses(int v) { this.totalLosses = v; }
+
+    public int getTotalQuizAnswered() { return totalQuizAnswered; }
+    public void setTotalQuizAnswered(int v) { this.totalQuizAnswered = v; }
+
+    public int getTotalQuizCorrect() { return totalQuizCorrect; }
+    public void setTotalQuizCorrect(int v) { this.totalQuizCorrect = v; }
+
+    public int getTotalGrassCut() { return totalGrassCut; }
+    public void setTotalGrassCut(int v) { this.totalGrassCut = v; }
+
+    public int getTotalRoundsPlayed() { return totalRoundsPlayed; }
+    public void setTotalRoundsPlayed(int v) { this.totalRoundsPlayed = v; }
 }

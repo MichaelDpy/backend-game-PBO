@@ -13,5 +13,6 @@ public record GameStateDto(
         boolean[][] rockGrid,        // true = ada batu
         List<PlayerDto> players,
         QuizStateDto quizState,      // null jika tidak sedang kuis
-        String winnerId              // null jika belum selesai
+        String winnerId,             // null jika belum selesai
+        List<BombDto> activeBombs    // bom yang sedang terbang
 ) {}

@@ -3,6 +3,7 @@ package org.example.backend.service;
 import org.example.backend.dto.*;
 import org.example.backend.entity.Player;
 import org.example.backend.entity.Room;
+import java.util.stream.Collectors;
 import org.example.backend.enums.GamePhase;
 import org.example.backend.enums.PowerUpType;
 import org.example.backend.enums.RoomStatus;
@@ -13,6 +14,8 @@ import org.example.backend.powerup.PowerUp;
 import org.example.backend.powerup.PowerUpFactory;
 import org.example.backend.quiz.QuizBank;
 import org.example.backend.quiz.QuizQuestion;
+import org.example.backend.entity.UserAccount;
+import org.example.backend.repository.UserAccountRepository;
 import org.example.backend.repository.PlayerRepository;
 import org.example.backend.repository.RoomRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,6 +38,7 @@ public class GameService {
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
+    private final UserAccountRepository userAccountRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final QuizBank quizBank;
     private final PowerUpFactory powerUpFactory;
@@ -42,11 +46,13 @@ public class GameService {
     
     public GameService(RoomRepository roomRepository,
                        PlayerRepository playerRepository,
+                       UserAccountRepository userAccountRepository,
                        SimpMessagingTemplate messagingTemplate,
                        QuizBank quizBank,
                        PowerUpFactory powerUpFactory) {
         this.roomRepository = roomRepository;
         this.playerRepository = playerRepository;
+        this.userAccountRepository = userAccountRepository;
         this.messagingTemplate = messagingTemplate;
         this.quizBank = quizBank;
         this.powerUpFactory = powerUpFactory;
@@ -384,6 +390,7 @@ public class GameService {
             p.setTotalQuizAnswered(p.getTotalQuizAnswered() + 1);
             if (correct) p.setTotalQuizCorrect(p.getTotalQuizCorrect() + 1);
             playerRepository.save(p);
+            updateAccountStats(p, false, 0, 0, 1, correct ? 1 : 0);
         });
 
         broadcastState(session, room);
@@ -485,13 +492,13 @@ public class GameService {
 
         winner.ifPresent(w -> {
             session.setWinnerId(String.valueOf(w.getPlayerId()));
-            // Update stats pemenang
             playerRepository.findById(w.getPlayerId()).ifPresent(p -> {
                 p.setTotalWins(p.getTotalWins() + 1);
                 p.setTotalGamesPlayed(p.getTotalGamesPlayed() + 1);
                 p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + session.getRound());
                 p.setTotalGrassCut(p.getTotalGrassCut() + w.getGrassCutTotal());
                 playerRepository.save(p);
+                updateAccountStats(p, true, w.getGrassCutTotal(), session.getRound(), 0, 0);
             });
         });
 
@@ -504,6 +511,7 @@ public class GameService {
                     p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + session.getRound());
                     p.setTotalGrassCut(p.getTotalGrassCut() + s.getGrassCutTotal());
                     playerRepository.save(p);
+                    updateAccountStats(p, false, s.getGrassCutTotal(), session.getRound(), 0, 0);
                 }));
 
         room.setStatus(RoomStatus.FINISHED);
@@ -571,6 +579,13 @@ public class GameService {
             );
         }
 
+        List<BombDto> bombDtos = session.getActiveBombs().stream()
+                .map(b -> new BombDto(
+                        b.getThrowerPlayerId(), b.getTargetPlayerId(),
+                        b.getFromX(), b.getFromY(), b.getToX(), b.getToY(),
+                        b.getLaunchTime(), b.getArrivalTime()))
+                .collect(Collectors.toList());
+
         return new GameStateDto(
                 session.getRoomCode(),
                 session.getPhase(),
@@ -580,7 +595,8 @@ public class GameService {
                 session.getRockGrid(),
                 playerDtos,
                 quizState,
-                session.getWinnerId()
+                session.getWinnerId(),
+                bombDtos
         );
     }
 
@@ -599,7 +615,21 @@ public class GameService {
                 winRate, quizAcc);
     }
 
-    // ===================== HELPERS =====================
+    /** Update stats UserAccount jika player terhubung ke akun */
+    private void updateAccountStats(Player p, boolean won, int grassCut, int rounds,
+                                     int quizAnswered, int quizCorrect) {
+        if (p.getAccountUsername() == null) return;
+        userAccountRepository.findByUsername(p.getAccountUsername()).ifPresent(acc -> {
+            acc.setTotalGamesPlayed(acc.getTotalGamesPlayed() + 1);
+            if (won) acc.setTotalWins(acc.getTotalWins() + 1);
+            else acc.setTotalLosses(acc.getTotalLosses() + 1);
+            acc.setTotalGrassCut(acc.getTotalGrassCut() + grassCut);
+            acc.setTotalRoundsPlayed(acc.getTotalRoundsPlayed() + rounds);
+            acc.setTotalQuizAnswered(acc.getTotalQuizAnswered() + quizAnswered);
+            acc.setTotalQuizCorrect(acc.getTotalQuizCorrect() + quizCorrect);
+            userAccountRepository.save(acc);
+        });
+    }
 
     private Room getRoom(String roomCode) {
         return roomRepository.findByCode(roomCode)

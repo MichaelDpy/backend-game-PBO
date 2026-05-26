@@ -8,5 +8,6 @@ import org.example.backend.enums.MowerColor;
 public record JoinRoomRequest(
         @NotBlank @Size(min = 1, max = 20) String playerName,
         @NotNull MowerColor color,
-        @NotBlank String roomCode
+        @NotBlank String roomCode,
+        String accountUsername  // null jika guest
 ) {}

@@ -5,6 +5,7 @@ import org.example.backend.dto.AuthResponse;
 import org.example.backend.dto.LoginRequest;
 import org.example.backend.dto.RegisterRequest;
 import org.example.backend.dto.UpdateColorRequest;
+import org.example.backend.dto.StatsDto;
 import org.example.backend.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,5 +46,12 @@ public class AuthController {
     public ResponseEntity<AuthResponse> getMe(
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(authService.getMe(userDetails.getUsername()));
+    }
+
+    /** Ambil stats user yang sedang login */
+    @GetMapping("/me/stats")
+    public ResponseEntity<StatsDto> getMyStats(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(authService.getMyStats(userDetails.getUsername()));
     }
 }

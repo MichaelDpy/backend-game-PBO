@@ -6,26 +6,27 @@ import org.example.backend.entity.Room;
 import org.example.backend.enums.RoomStatus;
 import org.example.backend.repository.PlayerRepository;
 import org.example.backend.repository.RoomRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Random;
 
-/**
- * Service untuk manajemen room.
- * Menerapkan ENCAPSULATION — logika bisnis tersembunyi di dalam service.
- */
 @Service
 public class RoomService {
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     private final Random random = new Random();
 
-    public RoomService(RoomRepository roomRepository, PlayerRepository playerRepository) {
+    public RoomService(RoomRepository roomRepository,
+                       PlayerRepository playerRepository,
+                       SimpMessagingTemplate messagingTemplate) {
         this.roomRepository = roomRepository;
         this.playerRepository = playerRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -36,10 +37,15 @@ public class RoomService {
 
         Player host = new Player(request.playerName(), request.color(), true);
         host.setRoom(room);
+        if (request.accountUsername() != null) {
+            host.setAccountUsername(request.accountUsername());
+        }
         host = playerRepository.save(host);
         room.getPlayers().add(host);
 
-        return toDto(room, host.getId());
+        RoomDto dto = toDto(room, host.getId());
+        broadcastRoomUpdate(room, host.getId());
+        return dto;
     }
 
     @Transactional
@@ -53,10 +59,18 @@ public class RoomService {
 
         Player player = new Player(request.playerName(), request.color(), false);
         player.setRoom(room);
+        if (request.accountUsername() != null) {
+            player.setAccountUsername(request.accountUsername());
+        }
         player = playerRepository.save(player);
         room.getPlayers().add(player);
 
-        return toDto(room, player.getId());
+        RoomDto dto = toDto(room, player.getId());
+
+        // Broadcast to everyone already in the room so they see the new player
+        broadcastRoomUpdate(room, null);
+
+        return dto;
     }
 
     @Transactional
@@ -65,6 +79,7 @@ public class RoomService {
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan"));
         room.setStatus(RoomStatus.FINISHED);
         roomRepository.save(room);
+        broadcastRoomUpdate(room, null);
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +87,15 @@ public class RoomService {
         Room room = roomRepository.findByCode(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan"));
         return toDto(room, myPlayerId);
+    }
+
+    /**
+     * Broadcast current room state to all subscribers of /topic/room/{code}.
+     * myPlayerId = null means broadcast a generic update (no personal myPlayerId).
+     */
+    public void broadcastRoomUpdate(Room room, Long myPlayerId) {
+        RoomDto dto = toDto(room, myPlayerId);
+        messagingTemplate.convertAndSend("/topic/room/" + room.getCode(), dto);
     }
 
     private String generateUniqueCode() {

@@ -5,6 +5,7 @@ import org.example.backend.dto.AuthResponse;
 import org.example.backend.dto.LoginRequest;
 import org.example.backend.dto.RegisterRequest;
 import org.example.backend.dto.UpdateColorRequest;
+import org.example.backend.dto.StatsDto;
 import org.example.backend.entity.UserAccount;
 import org.example.backend.enums.MowerColor;
 import org.example.backend.repository.UserAccountRepository;
@@ -68,7 +69,21 @@ public class AuthService {
     public AuthResponse getMe(String username) {
         UserAccount account = userAccountRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User tidak ditemukan"));
-        // Token tidak perlu di-regenerate untuk getMe
         return new AuthResponse(account.getId(), account.getUsername(), account.getLastColor(), null);
+    }
+
+    @Transactional(readOnly = true)
+    public StatsDto getMyStats(String username) {
+        UserAccount a = userAccountRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User tidak ditemukan"));
+        double winRate = a.getTotalGamesPlayed() == 0 ? 0 :
+                (double) a.getTotalWins() / a.getTotalGamesPlayed() * 100;
+        double quizAcc = a.getTotalQuizAnswered() == 0 ? 0 :
+                (double) a.getTotalQuizCorrect() / a.getTotalQuizAnswered() * 100;
+        return new StatsDto(a.getId(), a.getUsername(),
+                a.getTotalGamesPlayed(), a.getTotalWins(), a.getTotalLosses(),
+                a.getTotalQuizAnswered(), a.getTotalQuizCorrect(),
+                a.getTotalGrassCut(), a.getTotalRoundsPlayed(),
+                winRate, quizAcc);
     }
 }
