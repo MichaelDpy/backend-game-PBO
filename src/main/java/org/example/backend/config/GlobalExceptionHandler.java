@@ -17,7 +17,6 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** Validation errors (@Valid) */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new HashMap<>();
@@ -27,7 +26,6 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "Validasi gagal", fieldErrors);
     }
 
-    /** Business logic errors */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArg(IllegalArgumentException ex) {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), null);
@@ -38,7 +36,6 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, ex.getMessage(), null);
     }
 
-    /** Catch-all */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Terjadi kesalahan server: " + ex.getMessage(), null);

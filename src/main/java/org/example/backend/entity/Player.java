@@ -33,7 +33,7 @@ public class Player extends BaseEntity {
     @Column
     private String sessionId;
 
-    // ---- Stats permanen (disimpan ke DB) ----
+    //Stats permanen (disimpan ke DB)
     @Column(nullable = false)
     private int totalGamesPlayed = 0;
 
@@ -55,7 +55,7 @@ public class Player extends BaseEntity {
     @Column(nullable = false)
     private int totalRoundsPlayed = 0;
 
-    // ---- State in-game (tidak disimpan ke DB) ----
+    //State in-game (tidak disimpan ke DB)
     @Transient
     private int grassCutThisGame = 0;
 
@@ -92,7 +92,7 @@ public class Player extends BaseEntity {
         this.isHost = isHost;
     }
 
-    // ---- Getters & Setters ----
+    /*getter & setter*/
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -157,15 +157,14 @@ public class Player extends BaseEntity {
     public boolean isSpeedBoosted() { return speedBoosted; }
     public void setSpeedBoosted(boolean speedBoosted) { this.speedBoosted = speedBoosted; }
 
-    // ---- Business methods ----
-
-    /** Kurangi nyawa, return true jika masih hidup */
+    /* Kurangi nyawa, return true jika masih hidup */
     public boolean loseLife() {
         if (lives > 0) lives--;
         if (lives <= 0) alive = false;
         return alive;
     }
 
+    /*Tambah rumput yang dipotong dalam game ini */
     public void addGrassCut(int amount) {
         grassCutThisGame += amount;
         totalGrassCut += amount;

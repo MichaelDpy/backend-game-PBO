@@ -30,7 +30,7 @@ public class QuizBank {
      */
     private void loadQuestions() {
         // --- Matematika ---
-        add("Berapa hasil dari 7 × 8?",
+        add("Berapa hasil dari 7 x 8?",
                 List.of("54", "56", "48", "64"), 1, "Matematika");
 
         add("Berapa akar kuadrat dari 144?",
