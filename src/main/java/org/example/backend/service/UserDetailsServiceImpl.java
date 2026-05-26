@@ -1,7 +1,7 @@
-package org.example.backendkelaspbo.service;
+package org.example.backend.service;
 
-import org.example.backendkelaspbo.entity.UserAccount;
-import org.example.backendkelaspbo.repository.UserAccountRepository;
+import org.example.backend.entity.UserAccount;
+import org.example.backend.repository.UserAccountRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

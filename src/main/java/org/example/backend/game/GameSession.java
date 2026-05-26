@@ -1,7 +1,7 @@
-package org.example.backendkelaspbo.game;
+package org.example.backend.game;
 
-import org.example.backendkelaspbo.enums.GamePhase;
-import org.example.backendkelaspbo.quiz.QuizQuestion;
+import org.example.backend.enums.GamePhase;
+import org.example.backend.quiz.QuizQuestion;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

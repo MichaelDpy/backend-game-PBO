@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

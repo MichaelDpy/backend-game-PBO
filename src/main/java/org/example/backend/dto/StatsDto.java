@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
 public record StatsDto(
         Long playerId,

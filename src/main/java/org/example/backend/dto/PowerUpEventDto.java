@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
-import org.example.backendkelaspbo.enums.PowerUpType;
+import org.example.backend.enums.PowerUpType;
 
 public record PowerUpEventDto(
         Long playerId,

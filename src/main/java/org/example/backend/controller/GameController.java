@@ -1,7 +1,7 @@
-package org.example.backendkelaspbo.controller;
+package org.example.backend.controller;
 
-import org.example.backendkelaspbo.dto.*;
-import org.example.backendkelaspbo.service.GameService;
+import org.example.backend.dto.*;
+import org.example.backend.service.GameService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;

@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
 /**
  * Input dari pemain: arah gerak atau aksi (space = aktifkan power-up).

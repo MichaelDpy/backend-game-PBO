@@ -1,11 +1,11 @@
-package org.example.backendkelaspbo.controller;
+package org.example.backend.controller;
 
 import jakarta.validation.Valid;
-import org.example.backendkelaspbo.dto.AuthResponse;
-import org.example.backendkelaspbo.dto.LoginRequest;
-import org.example.backendkelaspbo.dto.RegisterRequest;
-import org.example.backendkelaspbo.dto.UpdateColorRequest;
-import org.example.backendkelaspbo.service.AuthService;
+import org.example.backend.dto.AuthResponse;
+import org.example.backend.dto.LoginRequest;
+import org.example.backend.dto.RegisterRequest;
+import org.example.backend.dto.UpdateColorRequest;
+import org.example.backend.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;

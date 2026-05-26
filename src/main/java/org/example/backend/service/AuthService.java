@@ -1,13 +1,13 @@
-package org.example.backendkelaspbo.service;
+package org.example.backend.service;
 
-import org.example.backendkelaspbo.config.JwtUtil;
-import org.example.backendkelaspbo.dto.AuthResponse;
-import org.example.backendkelaspbo.dto.LoginRequest;
-import org.example.backendkelaspbo.dto.RegisterRequest;
-import org.example.backendkelaspbo.dto.UpdateColorRequest;
-import org.example.backendkelaspbo.entity.UserAccount;
-import org.example.backendkelaspbo.enums.MowerColor;
-import org.example.backendkelaspbo.repository.UserAccountRepository;
+import org.example.backend.config.JwtUtil;
+import org.example.backend.dto.AuthResponse;
+import org.example.backend.dto.LoginRequest;
+import org.example.backend.dto.RegisterRequest;
+import org.example.backend.dto.UpdateColorRequest;
+import org.example.backend.entity.UserAccount;
+import org.example.backend.enums.MowerColor;
+import org.example.backend.repository.UserAccountRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

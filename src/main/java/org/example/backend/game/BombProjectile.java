@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.game;
+package org.example.backend.game;
 
 /**
  * Representasi bom yang sedang terbang di udara.

@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.repository;
+package org.example.backend.repository;
 
-import org.example.backendkelaspbo.entity.Player;
+import org.example.backend.entity.Player;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

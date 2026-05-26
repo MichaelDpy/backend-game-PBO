@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.powerup;
+package org.example.backend.powerup;
 
-import org.example.backendkelaspbo.enums.PowerUpType;
+import org.example.backend.enums.PowerUpType;
 
 /**
  * Power-up Bom — diaktifkan manual dengan Space, melempar ke pemain terdekat.

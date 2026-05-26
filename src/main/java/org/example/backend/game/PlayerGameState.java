@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.game;
+package org.example.backend.game;
 
-import org.example.backendkelaspbo.enums.PowerUpType;
+import org.example.backend.enums.PowerUpType;
 
 /**
  * State in-game satu pemain — ENCAPSULATION.

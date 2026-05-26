@@ -1,7 +1,7 @@
-package org.example.backendkelaspbo.entity;
+package org.example.backend.entity;
 
 import jakarta.persistence.*;
-import org.example.backendkelaspbo.enums.RoomStatus;
+import org.example.backend.enums.RoomStatus;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.quiz;
+package org.example.backend.quiz;
 
 import java.util.List;
 

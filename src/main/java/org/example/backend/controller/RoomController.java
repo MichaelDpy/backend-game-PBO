@@ -1,8 +1,8 @@
-package org.example.backendkelaspbo.controller;
+package org.example.backend.controller;
 
 import jakarta.validation.Valid;
-import org.example.backendkelaspbo.dto.*;
-import org.example.backendkelaspbo.service.RoomService;
+import org.example.backend.dto.*;
+import org.example.backend.service.RoomService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

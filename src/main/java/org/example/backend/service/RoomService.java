@@ -1,11 +1,11 @@
-package org.example.backendkelaspbo.service;
+package org.example.backend.service;
 
-import org.example.backendkelaspbo.dto.*;
-import org.example.backendkelaspbo.entity.Player;
-import org.example.backendkelaspbo.entity.Room;
-import org.example.backendkelaspbo.enums.RoomStatus;
-import org.example.backendkelaspbo.repository.PlayerRepository;
-import org.example.backendkelaspbo.repository.RoomRepository;
+import org.example.backend.dto.*;
+import org.example.backend.entity.Player;
+import org.example.backend.entity.Room;
+import org.example.backend.enums.RoomStatus;
+import org.example.backend.repository.PlayerRepository;
+import org.example.backend.repository.RoomRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

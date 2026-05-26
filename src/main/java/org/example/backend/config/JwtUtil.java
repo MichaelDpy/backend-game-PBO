@@ -1,4 +1,4 @@
-package org.example.backendkelaspbo.config;
+package org.example.backend.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

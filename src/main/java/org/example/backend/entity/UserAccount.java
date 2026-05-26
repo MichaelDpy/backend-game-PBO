@@ -1,9 +1,9 @@
-package org.example.backendkelaspbo.entity;
+package org.example.backend.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.example.backendkelaspbo.enums.MowerColor;
+import org.example.backend.enums.MowerColor;
 
 /**
  * Akun pengguna untuk login/register.

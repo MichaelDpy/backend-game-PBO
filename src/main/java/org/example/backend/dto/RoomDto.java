@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
-import org.example.backendkelaspbo.enums.RoomStatus;
+import org.example.backend.enums.RoomStatus;
 
 import java.util.List;
 

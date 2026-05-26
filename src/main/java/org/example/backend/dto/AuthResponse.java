@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
-import org.example.backendkelaspbo.enums.MowerColor;
+import org.example.backend.enums.MowerColor;
 
 public record AuthResponse(
         Long id,

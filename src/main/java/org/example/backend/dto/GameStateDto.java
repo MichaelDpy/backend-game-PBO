@@ -1,6 +1,6 @@
-package org.example.backendkelaspbo.dto;
+package org.example.backend.dto;
 
-import org.example.backendkelaspbo.enums.GamePhase;
+import org.example.backend.enums.GamePhase;
 
 import java.util.List;
 
