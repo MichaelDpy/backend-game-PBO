@@ -50,7 +50,7 @@ public class RoomService {
 
     @Transactional
     public RoomDto joinRoom(JoinRoomRequest request) {
-        Room room = roomRepository.findByCode(request.roomCode())
+        Room room = roomRepository.findByCodeWithPlayers(request.roomCode())
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan: " + request.roomCode()));
 
         if (!room.isAvailable()) {
@@ -75,7 +75,7 @@ public class RoomService {
 
     @Transactional
     public void disbandRoom(String roomCode) {
-        Room room = roomRepository.findByCode(roomCode)
+        Room room = roomRepository.findByCodeWithPlayers(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan"));
         room.setStatus(RoomStatus.FINISHED);
         roomRepository.save(room);
@@ -84,7 +84,7 @@ public class RoomService {
 
     @Transactional(readOnly = true)
     public RoomDto getRoom(String roomCode, Long myPlayerId) {
-        Room room = roomRepository.findByCode(roomCode)
+        Room room = roomRepository.findByCodeWithPlayers(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan"));
         return toDto(room, myPlayerId);
     }

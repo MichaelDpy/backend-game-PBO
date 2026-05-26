@@ -38,6 +38,9 @@ public class GameSession {
     private double powerUpChance = 0.15;
     private String winnerId = null;
 
+    // Per-session countdown timer — avoids shared state bug across multiple rooms
+    private long lastCountdownTick = 0;
+
     public GameSession(String roomCode) {
         this.roomCode = roomCode;
         initGrass();
@@ -179,4 +182,7 @@ public class GameSession {
 
     public String getWinnerId() { return winnerId; }
     public void setWinnerId(String winnerId) { this.winnerId = winnerId; }
+
+    public long getLastCountdownTick() { return lastCountdownTick; }
+    public void setLastCountdownTick(long lastCountdownTick) { this.lastCountdownTick = lastCountdownTick; }
 }

@@ -21,6 +21,7 @@ import org.example.backend.repository.RoomRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +66,12 @@ public class GameService {
 
     public void startGame(String roomCode) {
         Room room = getRoom(roomCode);
+
+        // Minimum 2 players required
+        if (room.getPlayers().size() < 2) {
+            throw new IllegalStateException("Minimal 2 pemain untuk memulai game");
+        }
+
         room.setStatus(RoomStatus.PLAYING);
         room.setCurrentRound(1);
         roomRepository.save(room);
@@ -115,35 +122,43 @@ public class GameService {
 
     // ===================== GAME TICK (100ms) =====================
 
+    @Transactional
     @Scheduled(fixedRate = 100)
     public void gameTick() {
         for (Map.Entry<String, GameSession> entry : sessions.entrySet()) {
             String roomCode = entry.getKey();
             GameSession session = entry.getValue();
 
+            // Skip sessions that are already game over
+            if (session.getPhase() == GamePhase.GAME_OVER) {
+                sessions.remove(roomCode);
+                continue;
+            }
+
             try {
-                Room room = getRoom(roomCode);
+                Room room = roomRepository.findByCodeWithPlayers(roomCode).orElse(null);
+                if (room == null || room.getStatus() == RoomStatus.FINISHED) {
+                    sessions.remove(roomCode);
+                    continue;
+                }
                 if (room.getStatus() != RoomStatus.PLAYING) continue;
 
                 switch (session.getPhase()) {
                     case COUNTDOWN -> tickCountdown(session, room);
-                    case PLAYING -> tickPlaying(session, room);
-                    case QUIZ -> tickQuiz(session, room);
-                    default -> { /* ROUND_END, GAME_OVER handled elsewhere */ }
+                    case PLAYING   -> tickPlaying(session, room);
+                    case QUIZ      -> tickQuiz(session, room);
+                    default        -> { }
                 }
             } catch (Exception e) {
-                // Log error tapi jangan crash seluruh tick
                 System.err.println("Error in game tick for room " + roomCode + ": " + e.getMessage());
             }
         }
     }
 
-    private long lastCountdownTick = 0;
-
     private void tickCountdown(GameSession session, Room room) {
         long now = System.currentTimeMillis();
-        if (now - lastCountdownTick < 1000) return;
-        lastCountdownTick = now;
+        if (now - session.getLastCountdownTick() < 1000) return;
+        session.setLastCountdownTick(now);
 
         int val = session.getCountdownValue();
         if (val > 0) {
@@ -518,6 +533,8 @@ public class GameService {
         roomRepository.save(room);
 
         broadcastState(session, room);
+        // Remove session so gameTick stops processing this room
+        sessions.remove(room.getCode());
     }
 
     public void retryGame(String roomCode) {
@@ -632,7 +649,7 @@ public class GameService {
     }
 
     private Room getRoom(String roomCode) {
-        return roomRepository.findByCode(roomCode)
+        return roomRepository.findByCodeWithPlayers(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan: " + roomCode));
     }
 
