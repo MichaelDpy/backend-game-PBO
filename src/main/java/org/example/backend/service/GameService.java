@@ -43,6 +43,7 @@ public class GameService {
     private final SimpMessagingTemplate messagingTemplate;
     private final QuizBank quizBank;
     private final PowerUpFactory powerUpFactory;
+    private final RoomService roomService;
     private final Random random = new Random();
     
     public GameService(RoomRepository roomRepository,
@@ -50,13 +51,15 @@ public class GameService {
                        UserAccountRepository userAccountRepository,
                        SimpMessagingTemplate messagingTemplate,
                        QuizBank quizBank,
-                       PowerUpFactory powerUpFactory) {
+                       PowerUpFactory powerUpFactory,
+                       RoomService roomService) {
         this.roomRepository = roomRepository;
         this.playerRepository = playerRepository;
         this.userAccountRepository = userAccountRepository;
         this.messagingTemplate = messagingTemplate;
         this.quizBank = quizBank;
         this.powerUpFactory = powerUpFactory;
+        this.roomService = roomService;
     }
 
     // In-memory game sessions per room
@@ -76,6 +79,9 @@ public class GameService {
         room.setCurrentRound(1);
         roomRepository.save(room);
 
+        // Broadcast RoomDto with PLAYING status so all WaitingRoom clients navigate to game
+        roomService.broadcastRoomUpdate(room, null);
+
         GameSession session = new GameSession(roomCode);
         sessions.put(roomCode, session);
 
@@ -85,16 +91,47 @@ public class GameService {
     }
 
     private void spawnPlayers(GameSession session, List<Player> players) {
-        // Posisi spawn yang tidak berdekatan
         List<int[]> spawnPoints = generateSpawnPoints(players.size());
-        String[] dirs = {"right", "left", "down", "up"};
+        String[] preferredDirs = {"right", "left", "down", "up"};
 
         for (int i = 0; i < players.size(); i++) {
             Player p = players.get(i);
             int[] pos = spawnPoints.get(i);
-            PlayerGameState state = new PlayerGameState(p.getId(), pos[0], pos[1], dirs[i % 4]);
+            int x = pos[0], y = pos[1];
+
+            // Pick a direction that doesn't immediately face a wall or rock
+            String chosenDir = chooseSafeDirection(session, x, y, preferredDirs[i % 4]);
+
+            PlayerGameState state = new PlayerGameState(p.getId(), x, y, chosenDir);
             session.getPlayerStates().put(p.getId(), state);
         }
+    }
+
+    /**
+     * Choose a direction from which the player won't immediately crash.
+     * Tries the preferred direction first, then cycles through all four.
+     * Falls back to preferred if all directions are blocked (shouldn't happen on a normal grid).
+     */
+    private String chooseSafeDirection(GameSession session, int x, int y, String preferred) {
+        String[] allDirs = {"right", "left", "down", "up"};
+        // Try preferred first
+        if (isSafeDirection(session, x, y, preferred)) return preferred;
+        for (String dir : allDirs) {
+            if (!dir.equals(preferred) && isSafeDirection(session, x, y, dir)) return dir;
+        }
+        return preferred; // fallback
+    }
+
+    private boolean isSafeDirection(GameSession session, int x, int y, String dir) {
+        int nx = x, ny = y;
+        switch (dir) {
+            case "up"    -> ny = y - 1;
+            case "down"  -> ny = y + 1;
+            case "left"  -> nx = x - 1;
+            case "right" -> nx = x + 1;
+        }
+        if (nx < 0 || nx >= GameSession.GRID_SIZE || ny < 0 || ny >= GameSession.GRID_SIZE) return false;
+        return !session.isCellBlocked(nx, ny);
     }
 
     private List<int[]> generateSpawnPoints(int count) {
@@ -228,15 +265,15 @@ public class GameService {
         // Proses bom yang sudah sampai
         processBombs(session);
 
-        // Cek apakah semua rumput sudah dipotong
+        // Cek apakah semua rumput sudah dipotong → akhiri ronde
         if (session.isAllGrassCut()) {
             endRound(session, room);
             return;
         }
 
-        // Cek apakah hanya 1 pemain tersisa
-        if (session.countAlivePlayers() <= 1) {
-            endGame(session, room);
+        // Cek apakah semua pemain sudah mati/crash di ronde ini → akhiri ronde
+        if (session.countAlivePlayers() == 0) {
+            endRound(session, room);
             return;
         }
 
@@ -425,6 +462,15 @@ public class GameService {
             }
         }
 
+        // Check if game should end: ≤1 player still has lives remaining
+        long playersWithLives = session.getPlayerStates().values().stream()
+                .filter(s -> s.getLives() > 0)
+                .count();
+        if (playersWithLives <= 1) {
+            endGame(session, room);
+            return;
+        }
+
         // Lanjut ke ronde berikutnya
         startNextRound(session, room);
     }
@@ -432,15 +478,25 @@ public class GameService {
     // ===================== ROUND END =====================
 
     private void endRound(GameSession session, Room room) {
-        session.setPhase(GamePhase.QUIZ);
+        // Award roundsSurvived to all players who still have lives (regardless of alive this round)
+        session.getPlayerStates().values().forEach(s -> {
+            if (s.getLives() > 0) s.incrementRoundsSurvived();
+        });
 
-        // Pemain dengan rumput paling sedikit kena kuis
-        Optional<Long> loser = session.getLowestScoringAlivePlayer();
+        // Find the player with the least grass cut this round among those who still have lives.
+        // This includes players who died this round (lives > 0 but crashed/not alive).
+        Optional<Long> loser = session.getPlayerStates().entrySet().stream()
+                .filter(e -> e.getValue().getLives() > 0)
+                .min(Comparator.comparingInt(e -> e.getValue().getGrassCutThisRound()))
+                .map(Map.Entry::getKey);
+
         if (loser.isEmpty()) {
-            startNextRound(session, room);
+            // No players have lives left — go to game over
+            endGame(session, room);
             return;
         }
 
+        session.setPhase(GamePhase.QUIZ);
         session.setQuizTargetPlayerId(loser.get());
         session.setActiveQuestion(quizBank.getRandom());
         session.setQuizStartTime(System.currentTimeMillis());
@@ -456,15 +512,24 @@ public class GameService {
         room.setCurrentRound(newRound);
         roomRepository.save(room);
 
-        // Tambah batu penghalang setiap kelipatan 3
+        // Tambah batu penghalang setiap kelipatan 3n+1 (ronde 4, 7, 10, 13...)
         addObstacleRocksIfNeeded(session, newRound);
 
         session.resetForNewRound();
-        spawnPlayers(session, room.getPlayers().stream()
+
+        // Restore alive=true for players who still have lives before respawning
+        session.getPlayerStates().values().forEach(s -> {
+            if (s.getLives() > 0) s.setAlive(true);
+        });
+
+        // Only respawn players who still have lives
+        List<Player> activePlayers = room.getPlayers().stream()
                 .filter(p -> {
                     PlayerGameState s = session.getPlayerStates().get(p.getId());
-                    return s != null && s.isAlive();
-                }).toList());
+                    return s != null && s.getLives() > 0;
+                }).toList();
+
+        spawnPlayers(session, activePlayers);
 
         broadcastState(session, room);
         startCountdown(session, room);
@@ -500,33 +565,35 @@ public class GameService {
     private void endGame(GameSession session, Room room) {
         session.setPhase(GamePhase.GAME_OVER);
 
-        // Temukan pemenang (pemain yang masih hidup)
+        // The winner is the last player with lives remaining
         Optional<PlayerGameState> winner = session.getPlayerStates().values().stream()
-                .filter(s -> s.isAlive() && !s.isCrashed())
+                .filter(s -> s.getLives() > 0)
                 .findFirst();
 
         winner.ifPresent(w -> {
+            // Award final roundsSurvived to winner
+            w.incrementRoundsSurvived();
             session.setWinnerId(String.valueOf(w.getPlayerId()));
             playerRepository.findById(w.getPlayerId()).ifPresent(p -> {
                 p.setTotalWins(p.getTotalWins() + 1);
                 p.setTotalGamesPlayed(p.getTotalGamesPlayed() + 1);
-                p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + session.getRound());
+                p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + w.getRoundsSurvived());
                 p.setTotalGrassCut(p.getTotalGrassCut() + w.getGrassCutTotal());
                 playerRepository.save(p);
-                updateAccountStats(p, true, w.getGrassCutTotal(), session.getRound(), 0, 0);
+                updateAccountStats(p, true, w.getGrassCutTotal(), w.getRoundsSurvived(), 0, 0);
             });
         });
 
-        // Update stats semua pemain yang kalah
+        // Update stats for all losing players
         session.getPlayerStates().values().stream()
-                .filter(s -> !s.isAlive() || s.isCrashed())
+                .filter(s -> s.getLives() <= 0)
                 .forEach(s -> playerRepository.findById(s.getPlayerId()).ifPresent(p -> {
                     p.setTotalLosses(p.getTotalLosses() + 1);
                     p.setTotalGamesPlayed(p.getTotalGamesPlayed() + 1);
-                    p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + session.getRound());
+                    p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + s.getRoundsSurvived());
                     p.setTotalGrassCut(p.getTotalGrassCut() + s.getGrassCutTotal());
                     playerRepository.save(p);
-                    updateAccountStats(p, false, s.getGrassCutTotal(), session.getRound(), 0, 0);
+                    updateAccountStats(p, false, s.getGrassCutTotal(), s.getRoundsSurvived(), 0, 0);
                 }));
 
         room.setStatus(RoomStatus.FINISHED);
@@ -574,12 +641,13 @@ public class GameService {
                     PlayerGameState s = session.getPlayerStates().get(p.getId());
                     if (s == null) {
                         return new PlayerDto(p.getId(), p.getName(), p.getColor(), p.isHost(),
-                                2, 0, 0, 0, "right", true, false, false, null);
+                                2, 0, 0, 0, 0, "right", true, false, false, null, 0);
                     }
                     return new PlayerDto(p.getId(), p.getName(), p.getColor(), p.isHost(),
-                            s.getLives(), s.getGrassCutTotal(),
+                            s.getLives(), s.getGrassCutTotal(), s.getGrassCutThisRound(),
                             s.getPosX(), s.getPosY(), s.getDirection(),
-                            s.isAlive(), s.isCrashed(), s.isSpeedBoosted(), s.getHeldPowerUp());
+                            s.isAlive(), s.isCrashed(), s.isSpeedBoosted(), s.getHeldPowerUp(),
+                            s.getRoundsSurvived());
                 }).toList();
 
         QuizStateDto quizState = null;
@@ -603,6 +671,13 @@ public class GameService {
                         b.getLaunchTime(), b.getArrivalTime()))
                 .collect(Collectors.toList());
 
+        // Build leaderboard: sort by roundsSurvived desc, then grassCutTotal desc
+        List<PlayerDto> leaderboard = playerDtos.stream()
+                .sorted(Comparator
+                        .comparingInt(PlayerDto::roundsSurvived).reversed()
+                        .thenComparingInt(PlayerDto::grassCut).reversed())
+                .collect(Collectors.toList());
+
         return new GameStateDto(
                 session.getRoomCode(),
                 session.getPhase(),
@@ -613,7 +688,8 @@ public class GameService {
                 playerDtos,
                 quizState,
                 session.getWinnerId(),
-                bombDtos
+                bombDtos,
+                leaderboard
         );
     }
 

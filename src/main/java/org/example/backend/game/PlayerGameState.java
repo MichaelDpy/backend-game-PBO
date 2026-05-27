@@ -19,6 +19,8 @@ public class PlayerGameState {
     private PowerUpType heldPowerUp = null;
     private boolean speedBoosted = false;
     private long speedBoostEndTime = 0;
+    // How many rounds this player survived (incremented at end of each round they were alive)
+    private int roundsSurvived = 0;
 
     public PlayerGameState(Long playerId, int startX, int startY, String startDir) {
         this.playerId = playerId;
@@ -78,6 +80,10 @@ public class PlayerGameState {
 
     public int getGrassCutTotal() { return grassCutTotal; }
     public void setGrassCutTotal(int grassCutTotal) { this.grassCutTotal = grassCutTotal; }
+
+    public int getRoundsSurvived() { return roundsSurvived; }
+    public void setRoundsSurvived(int roundsSurvived) { this.roundsSurvived = roundsSurvived; }
+    public void incrementRoundsSurvived() { this.roundsSurvived++; }
 
     public PowerUpType getHeldPowerUp() { return heldPowerUp; }
     public void setHeldPowerUp(PowerUpType heldPowerUp) { this.heldPowerUp = heldPowerUp; }

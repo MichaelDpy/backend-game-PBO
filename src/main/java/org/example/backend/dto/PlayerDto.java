@@ -9,12 +9,14 @@ public record PlayerDto(
         MowerColor color,
         boolean isHost,
         int lives,
-        int grassCut,
+        int grassCut,          // total across all rounds (for leaderboard)
+        int grassCutThisRound, // this round only (for TopBar display)
         int posX,
         int posY,
         String direction,
         boolean alive,
         boolean crashed,
         boolean speedBoosted,
-        PowerUpType heldPowerUp
+        PowerUpType heldPowerUp,
+        int roundsSurvived
 ) {}

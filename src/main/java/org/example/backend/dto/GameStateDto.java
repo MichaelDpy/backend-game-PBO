@@ -14,5 +14,6 @@ public record GameStateDto(
         List<PlayerDto> players,
         QuizStateDto quizState,      // null jika tidak sedang kuis
         String winnerId,             // null jika belum selesai
-        List<BombDto> activeBombs    // bom yang sedang terbang
+        List<BombDto> activeBombs,   // bom yang sedang terbang
+        List<PlayerDto> leaderboard  // sorted by rank (rounds survived desc, then grass cut desc)
 ) {}

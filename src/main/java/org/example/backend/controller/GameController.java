@@ -23,13 +23,13 @@ public class GameController {
     @PostMapping("/{roomCode}/start")
     public ResponseEntity<Void> startGame(@PathVariable String roomCode) {
         gameService.startGame(roomCode);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{roomCode}/retry")
     public ResponseEntity<Void> retryGame(@PathVariable String roomCode) {
         gameService.retryGame(roomCode);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/stats/{playerId}")

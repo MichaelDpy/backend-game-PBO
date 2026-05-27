@@ -121,6 +121,6 @@ public class RoomService {
 
     public PlayerDto toPlayerDto(Player p) {
         return new PlayerDto(p.getId(), p.getName(), p.getColor(), p.isHost(),
-                2, 0, 0, 0, "right", true, false, false, null);
+                2, 0, 0, 0, 0, "right", true, false, false, null, 0);
     }
 }
