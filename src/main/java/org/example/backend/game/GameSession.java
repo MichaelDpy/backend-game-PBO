@@ -30,12 +30,16 @@ public class GameSession {
     private long quizStartTime = 0;
     private Boolean quizAnswered = null;
     private Integer quizSelectedIndex = null;
+    // Guard to prevent double-execution of handleQuizResult (race between tickQuiz and answer thread)
+    private volatile boolean quizResultProcessed = false;
 
     private final List<BombProjectile> activeBombs = new ArrayList<>();
 
     private int obstacleRockCount = 0;
     private boolean rockPowerUpEnabled = true;
-    private double powerUpChance = 0.15;
+    // powerUpPickedThisRound tracks how many power-ups have been picked up this round.
+    // Max per round = 2 * round (2n rule). Probability kept constant at 0.3.
+    private int powerUpPickedThisRound = 0;
     private String winnerId = null;
 
     // Per-session countdown timer — avoids shared state bug across multiple rooms
@@ -63,8 +67,10 @@ public class GameSession {
         quizTargetPlayerId = null;
         quizAnswered = null;
         quizSelectedIndex = null;
+        quizResultProcessed = false;
         phase = GamePhase.COUNTDOWN;
         countdownValue = 3;
+        powerUpPickedThisRound = 0;
         playerStates.values().forEach(PlayerGameState::resetForRound);
     }
 
@@ -117,7 +123,63 @@ public class GameSession {
         return true;
     }
 
-    public long countAlivePlayers() {
+    /**
+     * Add an obstacle rock at a random position that does NOT create a dead end.
+     * A dead end is any open cell that would have ≤1 open neighbor after placing the rock.
+     * Tries up to 20 random candidates; if none are safe, returns false (grid is too full).
+     */
+    public boolean addObstacleRockSafe(Random random) {
+        List<int[]> candidates = new ArrayList<>();
+        for (int y = 0; y < GRID_SIZE; y++) {
+            for (int x = 0; x < GRID_SIZE; x++) {
+                if (!rockGrid[y][x] && !playerRockGrid[y][x]
+                        && getPlayerAtCell(x, y).isEmpty()) {
+                    candidates.add(new int[]{x, y});
+                }
+            }
+        }
+        if (candidates.isEmpty()) return false;
+
+        Collections.shuffle(candidates, random);
+        int tries = Math.min(candidates.size(), 30);
+        for (int i = 0; i < tries; i++) {
+            int[] pos = candidates.get(i);
+            int cx = pos[0], cy = pos[1];
+            // Tentatively place the rock
+            rockGrid[cy][cx] = true;
+            // Check that no adjacent open cell becomes a dead end
+            if (!createsDeadEnd(cx, cy)) {
+                obstacleRockCount++;
+                return true;
+            }
+            // Undo
+            rockGrid[cy][cx] = false;
+        }
+        // All candidates create dead ends — grid is too full
+        return false;
+    }
+
+    /**
+     * Returns true if placing a rock at (rx, ry) would create a dead end.
+     * A dead end = any open cell adjacent to (rx,ry) that now has ≤1 open neighbor.
+     */
+    private boolean createsDeadEnd(int rx, int ry) {
+        int[][] dirs = {{0,-1},{0,1},{-1,0},{1,0}};
+        for (int[] d : dirs) {
+            int nx = rx + d[0], ny = ry + d[1];
+            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
+            if (isCellBlocked(nx, ny)) continue;
+            // Count open neighbors of (nx, ny)
+            int openNeighbors = 0;
+            for (int[] d2 : dirs) {
+                int nnx = nx + d2[0], nny = ny + d2[1];
+                if (nnx < 0 || nnx >= GRID_SIZE || nny < 0 || nny >= GRID_SIZE) continue;
+                if (!isCellBlocked(nnx, nny)) openNeighbors++;
+            }
+            if (openNeighbors <= 1) return true; // dead end
+        }
+        return false;
+    }    public long countAlivePlayers() {
         return playerStates.values().stream()
                 .filter(s -> s.isAlive() && !s.isCrashed())
                 .count();
@@ -169,6 +231,9 @@ public class GameSession {
     public Integer getQuizSelectedIndex() { return quizSelectedIndex; }
     public void setQuizSelectedIndex(Integer quizSelectedIndex) { this.quizSelectedIndex = quizSelectedIndex; }
 
+    public boolean isQuizResultProcessed() { return quizResultProcessed; }
+    public void setQuizResultProcessed(boolean quizResultProcessed) { this.quizResultProcessed = quizResultProcessed; }
+
     public List<BombProjectile> getActiveBombs() { return activeBombs; }
 
     public int getObstacleRockCount() { return obstacleRockCount; }
@@ -177,8 +242,8 @@ public class GameSession {
     public boolean isRockPowerUpEnabled() { return rockPowerUpEnabled; }
     public void setRockPowerUpEnabled(boolean rockPowerUpEnabled) { this.rockPowerUpEnabled = rockPowerUpEnabled; }
 
-    public double getPowerUpChance() { return powerUpChance; }
-    public void setPowerUpChance(double powerUpChance) { this.powerUpChance = powerUpChance; }
+    public int getPowerUpPickedThisRound() { return powerUpPickedThisRound; }
+    public void incrementPowerUpPicked() { this.powerUpPickedThisRound++; }
 
     public String getWinnerId() { return winnerId; }
     public void setWinnerId(String winnerId) { this.winnerId = winnerId; }

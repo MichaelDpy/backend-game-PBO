@@ -19,6 +19,8 @@ public class PlayerGameState {
     private PowerUpType heldPowerUp = null;
     private boolean speedBoosted = false;
     private long speedBoostEndTime = 0;
+    private boolean stunned = false;
+    private long stunEndTime = 0;
     // How many rounds this player survived (incremented at end of each round they were alive)
     private int roundsSurvived = 0;
 
@@ -35,6 +37,8 @@ public class PlayerGameState {
         speedBoosted = false;
         speedBoostEndTime = 0;
         grassCutThisRound = 0;
+        stunned = false;
+        stunEndTime = 0;
     }
 
     public boolean loseLife() {
@@ -84,6 +88,21 @@ public class PlayerGameState {
     public int getRoundsSurvived() { return roundsSurvived; }
     public void setRoundsSurvived(int roundsSurvived) { this.roundsSurvived = roundsSurvived; }
     public void incrementRoundsSurvived() { this.roundsSurvived++; }
+
+    public void applyStun(int durationMs) {
+        stunned = true;
+        stunEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    /** Auto-expires stun when time is up */
+    public boolean isStunned() {
+        if (stunned && System.currentTimeMillis() > stunEndTime) {
+            stunned = false;
+        }
+        return stunned;
+    }
+    public void setStunned(boolean stunned) { this.stunned = stunned; }
+    public long getStunEndTime() { return stunEndTime; }
 
     public PowerUpType getHeldPowerUp() { return heldPowerUp; }
     public void setHeldPowerUp(PowerUpType heldPowerUp) { this.heldPowerUp = heldPowerUp; }

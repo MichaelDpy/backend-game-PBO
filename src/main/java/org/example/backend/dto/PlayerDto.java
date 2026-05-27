@@ -18,5 +18,7 @@ public record PlayerDto(
         boolean crashed,
         boolean speedBoosted,
         PowerUpType heldPowerUp,
-        int roundsSurvived
+        int roundsSurvived,
+        boolean stunned,
+        long stunEndTime
 ) {}

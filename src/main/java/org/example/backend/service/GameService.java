@@ -102,36 +102,58 @@ public class GameService {
             // Pick a direction that doesn't immediately face a wall or rock
             String chosenDir = chooseSafeDirection(session, x, y, preferredDirs[i % 4]);
 
-            PlayerGameState state = new PlayerGameState(p.getId(), x, y, chosenDir);
-            session.getPlayerStates().put(p.getId(), state);
+            PlayerGameState existing = session.getPlayerStates().get(p.getId());
+            if (existing != null) {
+                // Preserve lives, grassCutTotal, roundsSurvived — only reset position/direction
+                existing.setPosX(x);
+                existing.setPosY(y);
+                existing.setDirection(chosenDir);
+                existing.setAlive(true);
+                existing.setCrashed(false);
+            } else {
+                // First spawn — create new state
+                PlayerGameState state = new PlayerGameState(p.getId(), x, y, chosenDir);
+                session.getPlayerStates().put(p.getId(), state);
+            }
         }
     }
 
     /**
      * Choose a direction from which the player won't immediately crash.
+     * Checks 2 cells ahead so the player has at least one move before hitting anything.
      * Tries the preferred direction first, then cycles through all four.
-     * Falls back to preferred if all directions are blocked (shouldn't happen on a normal grid).
+     * Falls back to preferred if all directions are blocked.
      */
     private String chooseSafeDirection(GameSession session, int x, int y, String preferred) {
         String[] allDirs = {"right", "left", "down", "up"};
-        // Try preferred first
-        if (isSafeDirection(session, x, y, preferred)) return preferred;
+        // Try preferred first (2 cells clear)
+        if (isSafeDirection(session, x, y, preferred, 2)) return preferred;
+        // Try other directions with 2 cells clear
         for (String dir : allDirs) {
-            if (!dir.equals(preferred) && isSafeDirection(session, x, y, dir)) return dir;
+            if (!dir.equals(preferred) && isSafeDirection(session, x, y, dir, 2)) return dir;
         }
-        return preferred; // fallback
+        // Fallback: try with just 1 cell clear
+        if (isSafeDirection(session, x, y, preferred, 1)) return preferred;
+        for (String dir : allDirs) {
+            if (!dir.equals(preferred) && isSafeDirection(session, x, y, dir, 1)) return dir;
+        }
+        return preferred; // last resort
     }
 
-    private boolean isSafeDirection(GameSession session, int x, int y, String dir) {
+    /** Returns true if the next `steps` cells in `dir` from (x,y) are all clear. */
+    private boolean isSafeDirection(GameSession session, int x, int y, String dir, int steps) {
         int nx = x, ny = y;
-        switch (dir) {
-            case "up"    -> ny = y - 1;
-            case "down"  -> ny = y + 1;
-            case "left"  -> nx = x - 1;
-            case "right" -> nx = x + 1;
+        for (int i = 0; i < steps; i++) {
+            switch (dir) {
+                case "up"    -> ny--;
+                case "down"  -> ny++;
+                case "left"  -> nx--;
+                case "right" -> nx++;
+            }
+            if (nx < 0 || nx >= GameSession.GRID_SIZE || ny < 0 || ny >= GameSession.GRID_SIZE) return false;
+            if (session.isCellBlocked(nx, ny)) return false;
         }
-        if (nx < 0 || nx >= GameSession.GRID_SIZE || ny < 0 || ny >= GameSession.GRID_SIZE) return false;
-        return !session.isCellBlocked(nx, ny);
+        return true;
     }
 
     private List<int[]> generateSpawnPoints(int count) {
@@ -214,7 +236,7 @@ public class GameService {
         if (session == null || session.getPhase() != GamePhase.PLAYING) return;
 
         PlayerGameState state = session.getPlayerStates().get(input.playerId());
-        if (state == null || !state.isAlive() || state.isCrashed()) return;
+        if (state == null || !state.isAlive() || state.isCrashed() || state.isStunned()) return;
 
         // Update arah
         if (input.direction() != null && !input.direction().isBlank()) {
@@ -258,7 +280,7 @@ public class GameService {
 
         // Gerakkan semua pemain
         for (PlayerGameState state : session.getPlayerStates().values()) {
-            if (!state.isAlive() || state.isCrashed()) continue;
+            if (!state.isAlive() || state.isCrashed() || state.isStunned()) continue;
             movePlayer(session, state);
         }
 
@@ -327,18 +349,17 @@ public class GameService {
             session.getGrassGrid()[newY][newX] = false;
             state.addGrassCut();
 
-            // Kemungkinan dapat power-up
-            // Power-up bisa didapat kapan saja (replace yang lama jika ada),
-            // kecuali jika sedang speed boost aktif — tetap bisa dapat power-up manual baru.
-            // Speed boost tidak menghalangi pickup power-up lain.
-            boolean canPickup = random.nextDouble() < session.getPowerUpChance();
+            // Power-up: max 2*round per ronde (2n rule), probability 0.3 per grass tile
+            int maxThisRound = 2 * session.getRound();
+            boolean canPickup = session.getPowerUpPickedThisRound() < maxThisRound
+                    && random.nextDouble() < 0.3;
             if (canPickup) {
                 PowerUp pu = powerUpFactory.createRandom(session.isRockPowerUpEnabled());
+                session.incrementPowerUpPicked();
 
                 // Speed boost langsung aktif, tidak disimpan di slot
                 if (pu.isAutoActivate()) {
                     state.activateSpeedBoost(pu.getEffectDurationMs());
-                    // Jangan replace held power-up yang ada — speed boost tidak pakai slot
                     broadcastPowerUpEvent(session.getRoomCode(), state.getPlayerId(),
                             pu.getType(), newX, newY, true);
                 } else {
@@ -405,8 +426,8 @@ public class GameService {
             if (bomb.hasArrived()) {
                 PlayerGameState target = session.getPlayerStates().get(bomb.getTargetPlayerId());
                 if (target != null && target.isAlive() && !target.isCrashed()) {
-                    target.setCrashed(true);
-                    target.setAlive(false);
+                    // Stun the target for 2 seconds instead of killing
+                    target.applyStun(2000);
                 }
                 it.remove();
             }
@@ -417,10 +438,12 @@ public class GameService {
 
     private void tickQuiz(GameSession session, Room room) {
         if (session.getQuizTargetPlayerId() == null) return;
+        if (session.isQuizResultProcessed()) return;
 
         long elapsed = System.currentTimeMillis() - session.getQuizStartTime();
         if (elapsed >= 10000 && session.getQuizAnswered() == null) {
-            // Waktu habis — salah
+            // Waktu habis — tandai dulu agar tidak double-fire
+            session.setQuizAnswered(false);
             handleQuizResult(session, room, false);
         }
     }
@@ -430,6 +453,7 @@ public class GameService {
         if (session == null || session.getPhase() != GamePhase.QUIZ) return;
         if (!answer.playerId().equals(session.getQuizTargetPlayerId())) return;
         if (session.getQuizAnswered() != null) return; // sudah dijawab
+        if (session.isQuizResultProcessed()) return;
 
         boolean correct = session.getActiveQuestion().isCorrect(answer.selectedIndex());
         session.setQuizAnswered(correct);
@@ -454,13 +478,20 @@ public class GameService {
         }).start();
     }
 
-    private void handleQuizResult(GameSession session, Room room, boolean correct) {
+    private synchronized void handleQuizResult(GameSession session, Room room, boolean correct) {
+        // Guard: only process once per quiz round
+        if (session.isQuizResultProcessed()) return;
+        session.setQuizResultProcessed(true);
+
         if (!correct) {
             PlayerGameState state = session.getPlayerStates().get(session.getQuizTargetPlayerId());
             if (state != null) {
                 state.loseLife();
             }
         }
+
+        // Broadcast the updated state (with new lives count) before transitioning
+        broadcastState(session, room);
 
         // Check if game should end: ≤1 player still has lives remaining
         long playersWithLives = session.getPlayerStates().values().stream()
@@ -536,27 +567,22 @@ public class GameService {
     }
 
     private void addObstacleRocksIfNeeded(GameSession session, int round) {
-        // Ronde 4 (kelipatan 3 + 1): tambah 5 batu
-        // Ronde 7, 10, 13 (kelipatan 3 + 1): tambah 2 batu
-        if (round == 4) {
-            for (int i = 0; i < 5; i++) {
-                boolean added = session.addObstacleRock(random);
-                if (!added) {
-                    session.setRockPowerUpEnabled(false);
-                    break;
-                }
+        // Rocks appear at rounds that satisfy round = 3n+1, for n = 1, 2, 3, ...
+        // i.e. rounds 4, 7, 10, 13, ...
+        // At each such round, add 2n rocks (n=1 → 2, n=2 → 4, n=3 → 6, ...)
+        if (round < 4) return;
+        if ((round - 1) % 3 != 0) return;
+
+        int n = (round - 1) / 3; // n=1 at round 4, n=2 at round 7, etc.
+        int rocksToAdd = 2 * n;
+
+        for (int i = 0; i < rocksToAdd; i++) {
+            boolean ok = session.addObstacleRockSafe(random);
+            if (!ok) {
+                // No safe position left — disable rock power-up to prevent dead ends
+                session.setRockPowerUpEnabled(false);
+                break;
             }
-            // Naikkan probabilitas power-up
-            session.setPowerUpChance(session.getPowerUpChance() + 0.05);
-        } else if (round > 4 && (round - 1) % 3 == 0) {
-            for (int i = 0; i < 2; i++) {
-                boolean added = session.addObstacleRock(random);
-                if (!added) {
-                    session.setRockPowerUpEnabled(false);
-                    break;
-                }
-            }
-            session.setPowerUpChance(Math.min(0.5, session.getPowerUpChance() + 0.03));
         }
     }
 
@@ -641,13 +667,13 @@ public class GameService {
                     PlayerGameState s = session.getPlayerStates().get(p.getId());
                     if (s == null) {
                         return new PlayerDto(p.getId(), p.getName(), p.getColor(), p.isHost(),
-                                2, 0, 0, 0, 0, "right", true, false, false, null, 0);
+                                2, 0, 0, 0, 0, "right", true, false, false, null, 0, false, 0L);
                     }
                     return new PlayerDto(p.getId(), p.getName(), p.getColor(), p.isHost(),
                             s.getLives(), s.getGrassCutTotal(), s.getGrassCutThisRound(),
                             s.getPosX(), s.getPosY(), s.getDirection(),
                             s.isAlive(), s.isCrashed(), s.isSpeedBoosted(), s.getHeldPowerUp(),
-                            s.getRoundsSurvived());
+                            s.getRoundsSurvived(), s.isStunned(), s.getStunEndTime());
                 }).toList();
 
         QuizStateDto quizState = null;
@@ -671,11 +697,20 @@ public class GameService {
                         b.getLaunchTime(), b.getArrivalTime()))
                 .collect(Collectors.toList());
 
+        // Merge obstacle rocks + player-placed rocks into one grid for the frontend
+        boolean[][] mergedRockGrid = new boolean[GameSession.GRID_SIZE][GameSession.GRID_SIZE];
+        boolean[][] obstacleRocks = session.getRockGrid();
+        boolean[][] playerRocks   = session.getPlayerRockGrid();
+        for (int y = 0; y < GameSession.GRID_SIZE; y++) {
+            for (int x = 0; x < GameSession.GRID_SIZE; x++) {
+                mergedRockGrid[y][x] = obstacleRocks[y][x] || playerRocks[y][x];
+            }
+        }
+
         // Build leaderboard: sort by roundsSurvived desc, then grassCutTotal desc
         List<PlayerDto> leaderboard = playerDtos.stream()
-                .sorted(Comparator
-                        .comparingInt(PlayerDto::roundsSurvived).reversed()
-                        .thenComparingInt(PlayerDto::grassCut).reversed())
+                .sorted(Comparator.comparingInt(PlayerDto::roundsSurvived).reversed()
+                        .thenComparing(Comparator.comparingInt(PlayerDto::grassCut).reversed()))
                 .collect(Collectors.toList());
 
         return new GameStateDto(
@@ -684,7 +719,7 @@ public class GameService {
                 session.getRound(),
                 session.getCountdownValue(),
                 session.getGrassGrid(),
-                session.getRockGrid(),
+                mergedRockGrid,
                 playerDtos,
                 quizState,
                 session.getWinnerId(),
