@@ -1,6 +1,7 @@
 package org.example.backend.service;
 
 import org.example.backend.dto.*;
+import java.time.ZoneId;
 import org.example.backend.entity.Player;
 import org.example.backend.entity.Room;
 import org.example.backend.enums.RoomStatus;
@@ -10,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
@@ -33,6 +35,8 @@ public class RoomService {
     public RoomDto createRoom(CreateRoomRequest request) {
         String code = generateUniqueCode();
         Room room = new Room(code);
+        room.setCreatedAt(LocalDateTime.now());
+        room.setExpiresAt(LocalDateTime.now().plusMinutes(5));
         room = roomRepository.save(room);
 
         Player host = new Player(request.playerName(), request.color(), true);
@@ -115,8 +119,11 @@ public class RoomService {
         List<PlayerDto> playerDtos = room.getPlayers().stream()
                 .map(this::toPlayerDto)
                 .toList();
+        long expiresAtMs = room.getExpiresAt() != null
+                ? room.getExpiresAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                : 0L;
         return new RoomDto(room.getId(), room.getCode(), room.getStatus(),
-                room.getCurrentRound(), playerDtos, myPlayerId);
+                room.getCurrentRound(), playerDtos, myPlayerId, expiresAtMs);
     }
 
     public PlayerDto toPlayerDto(Player p) {

@@ -7,11 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long> {
-
+    List<Room> findByExpiresAtBeforeAndStatusNot(LocalDateTime expiresAt, RoomStatus status);
     /**
      * Fetch room WITH players eagerly in one query.
      * Prevents LazyInitializationException when used outside a transaction.

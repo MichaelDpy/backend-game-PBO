@@ -22,7 +22,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.LocalDateTime;
+import org.springframework.scheduling.annotation.Scheduled;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -61,6 +62,34 @@ public class GameService {
         this.powerUpFactory = powerUpFactory;
         this.roomService = roomService;
     }
+
+    @Scheduled(fixedRate = 30000)  // cek setiap 30 detik
+    @Transactional
+    public void cleanupExpiredRooms() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Ambil hanya room yang belum finished dan sudah expired
+        List<Room> expiredRooms = roomRepository.findByExpiresAtBeforeAndStatusNot(now, RoomStatus.FINISHED);
+
+        for (Room room : expiredRooms) {
+            if (room.getStatus() != RoomStatus.FINISHED) {
+                room.setStatus(RoomStatus.FINISHED);
+                roomRepository.save(room);
+
+                // Broadcast ke frontend agar player tahu room ditutup
+                roomService.broadcastRoomUpdate(room, null);
+
+                // Hapus session game jika ada
+                sessions.remove(room.getCode());
+
+                System.out.println("🕒 Room " + room.getCode() + " telah expired setelah 5 menit.");
+            }
+        }
+    }
+
+
+
+
 
     // In-memory game sessions per room
     private final Map<String, GameSession> sessions = new ConcurrentHashMap<>();

@@ -1,5 +1,5 @@
 package org.example.backend.entity;
-
+import java.time.LocalDateTime;
 import jakarta.persistence.*;
 import org.example.backend.enums.RoomStatus;
 
@@ -27,13 +27,28 @@ public class Room extends BaseEntity {
     @Column(nullable = false)
     private int currentRound = 0;
 
-    // Required by JPA
-    public Room() {}
+    private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;   // baru
 
+    // Constructor
     public Room(String code) {
         this.code = code;
         this.status = RoomStatus.WAITING;
+        this.createdAt = LocalDateTime.now();
+        this.expiresAt = LocalDateTime.now().plusMinutes(5);  // 5 menit
     }
+
+    // Getter & Setter
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+
+
+
+    // Required by JPA
+    public Room() {}
+
 
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }

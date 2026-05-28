@@ -2,6 +2,7 @@ package org.example.backend.dto;
 
 import org.example.backend.enums.RoomStatus;
 
+import java.time.Instant;
 import java.util.List;
 
 public record RoomDto(
@@ -10,5 +11,6 @@ public record RoomDto(
         RoomStatus status,
         int currentRound,
         List<PlayerDto> players,
-        Long myPlayerId
+        Long myPlayerId,
+        long expiresAt   // epoch millis — mudah dipakai di Date.now() frontend
 ) {}
