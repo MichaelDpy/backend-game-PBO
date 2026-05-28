@@ -37,3 +37,7 @@ build/
 *.trace.db
 .env.local
 .env.*.local
+
+# H2 Database file-based storage
+data/
+*.db

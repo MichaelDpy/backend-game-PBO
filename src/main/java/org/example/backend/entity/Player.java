@@ -14,8 +14,8 @@ import org.example.backend.enums.PowerUpType;
 @Table(name = "players")
 public class Player extends BaseEntity {
 
-    @NotBlank
-    @Size(min = 1, max = 20)
+    @NotBlank(message = "Nama pemain tidak boleh kosong")
+    @Size(min = 1, max = 20, message = "Nama pemain harus 1-20 karakter")
     @Column(nullable = false, length = 20)
     private String name;
 

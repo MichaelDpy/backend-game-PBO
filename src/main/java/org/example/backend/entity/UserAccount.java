@@ -2,6 +2,7 @@ package org.example.backend.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.example.backend.enums.MowerColor;
 
@@ -13,12 +14,13 @@ import org.example.backend.enums.MowerColor;
 @Table(name = "user_accounts")
 public class UserAccount extends BaseEntity {
 
-    @NotBlank
-    @Size(min = 3, max = 20)
+    @NotBlank(message = "Username tidak boleh kosong")
+    @Size(min = 3, max = 20, message = "Username harus 3-20 karakter")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Username hanya boleh huruf, angka, dan underscore")
     @Column(nullable = false, unique = true, length = 20)
     private String username;
 
-    @NotBlank
+    @NotBlank(message = "Password tidak boleh kosong")
     @Column(nullable = false)
     private String passwordHash;
 
