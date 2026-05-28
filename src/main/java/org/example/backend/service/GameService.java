@@ -626,7 +626,6 @@ public class GameService {
                 .findFirst();
 
         winner.ifPresent(w -> {
-            // Award final roundsSurvived to winner
             w.incrementRoundsSurvived();
             session.setWinnerId(String.valueOf(w.getPlayerId()));
             playerRepository.findById(w.getPlayerId()).ifPresent(p -> {
@@ -635,11 +634,13 @@ public class GameService {
                 p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + w.getRoundsSurvived());
                 p.setTotalGrassCut(p.getTotalGrassCut() + w.getGrassCutTotal());
                 playerRepository.save(p);
-                updateAccountStats(p, true, w.getGrassCutTotal(), w.getRoundsSurvived(), 0, 0);
+                // Pass quiz stats from Player entity (accumulated during the game)
+                updateAccountStats(p, true, w.getGrassCutTotal(), w.getRoundsSurvived(),
+                        p.getTotalQuizAnswered(), p.getTotalQuizCorrect());
             });
         });
 
-        // Update stats for all losing players
+        // Update stats for all losing players (lives <= 0, i.e. not the winner)
         session.getPlayerStates().values().stream()
                 .filter(s -> s.getLives() <= 0)
                 .forEach(s -> playerRepository.findById(s.getPlayerId()).ifPresent(p -> {
@@ -648,14 +649,14 @@ public class GameService {
                     p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + s.getRoundsSurvived());
                     p.setTotalGrassCut(p.getTotalGrassCut() + s.getGrassCutTotal());
                     playerRepository.save(p);
-                    updateAccountStats(p, false, s.getGrassCutTotal(), s.getRoundsSurvived(), 0, 0);
+                    updateAccountStats(p, false, s.getGrassCutTotal(), s.getRoundsSurvived(),
+                            p.getTotalQuizAnswered(), p.getTotalQuizCorrect());
                 }));
 
         room.setStatus(RoomStatus.FINISHED);
         roomRepository.save(room);
 
         broadcastState(session, room);
-        // Remove session so gameTick stops processing this room
         sessions.remove(room.getCode());
     }
 
@@ -797,5 +798,3 @@ public class GameService {
         return sessions.get(roomCode);
     }
 }
-
-    

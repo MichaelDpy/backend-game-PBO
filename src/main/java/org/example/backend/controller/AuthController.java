@@ -37,6 +37,9 @@ public class AuthController {
     public ResponseEntity<Void> updateColor(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody UpdateColorRequest request) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
         authService.updateLastColor(userDetails.getUsername(), request);
         return ResponseEntity.noContent().build();
     }
@@ -45,6 +48,9 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<AuthResponse> getMe(
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
         return ResponseEntity.ok(authService.getMe(userDetails.getUsername()));
     }
 
@@ -52,6 +58,9 @@ public class AuthController {
     @GetMapping("/me/stats")
     public ResponseEntity<StatsDto> getMyStats(
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
         return ResponseEntity.ok(authService.getMyStats(userDetails.getUsername()));
     }
 }
