@@ -9,6 +9,7 @@ import org.example.backend.repository.PlayerRepository;
 import org.example.backend.repository.RoomRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -77,11 +78,58 @@ public class RoomService {
         return dto;
     }
 
+    /**
+     * Setiap 60 detik:
+     * 1. Expire room WAITING yang sudah melewati expiresAt → FINISHED
+     * 2. Expire room WAITING yang kosong (semua player pergi) → FINISHED
+     * Broadcast status FINISHED agar semua client redirect ke menu.
+     */
+    @Scheduled(fixedRate = 60_000)
+    @Transactional
+    public void expireStaleRooms() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Kasus 1: timer habis (expiresAt terlewat)
+        List<Room> timerExpired = roomRepository.findByExpiresAtBeforeAndStatusNot(
+                now, RoomStatus.FINISHED);
+        for (Room room : timerExpired) {
+            if (room.getStatus() == RoomStatus.PLAYING) continue;
+            room.markFinished();
+            roomRepository.save(room);
+            broadcastRoomUpdate(room, null);
+        }
+
+        // Kasus 2: room WAITING yang kosong (tidak ada player sama sekali)
+        List<Room> allWaiting = roomRepository.findByStatus(RoomStatus.WAITING);
+        for (Room room : allWaiting) {
+            if (room.getPlayers().isEmpty()) {
+                room.markFinished();
+                roomRepository.save(room);
+                // Tidak perlu broadcast — tidak ada yang subscribe
+            }
+        }
+    }
+
+    /**
+     * Setiap 6 jam: hapus permanen room FINISHED yang finishedAt-nya sudah > 3 hari.
+     * Room beserta semua player-nya dihapus (cascade).
+     */
+    @Scheduled(fixedRate = 6 * 60 * 60 * 1000L)
+    @Transactional
+    public void deleteOldFinishedRooms() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(3);
+        List<Room> oldRooms = roomRepository.findByStatusAndFinishedAtBefore(
+                RoomStatus.FINISHED, cutoff);
+        if (!oldRooms.isEmpty()) {
+            roomRepository.deleteAll(oldRooms);
+        }
+    }
+
     @Transactional
     public void disbandRoom(String roomCode) {
         Room room = roomRepository.findByCodeWithPlayers(roomCode)
                 .orElseThrow(() -> new IllegalArgumentException("Room tidak ditemukan"));
-        room.setStatus(RoomStatus.FINISHED);
+        room.markFinished();
         roomRepository.save(room);
         broadcastRoomUpdate(room, null);
     }

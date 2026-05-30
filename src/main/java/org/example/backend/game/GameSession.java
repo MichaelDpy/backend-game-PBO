@@ -45,6 +45,10 @@ public class GameSession {
     // Per-session countdown timer — avoids shared state bug across multiple rooms
     private long lastCountdownTick = 0;
 
+    // Quiz stats delta per player for this game only (answered, correct)
+    // Key = playerId, Value = [answered, correct]
+    private final Map<Long, int[]> quizDeltaPerPlayer = new ConcurrentHashMap<>();
+
     public GameSession(String roomCode) {
         this.roomCode = roomCode;
         initGrass();
@@ -250,4 +254,19 @@ public class GameSession {
 
     public long getLastCountdownTick() { return lastCountdownTick; }
     public void setLastCountdownTick(long lastCountdownTick) { this.lastCountdownTick = lastCountdownTick; }
+
+    /** Record a quiz answer for this game session (delta tracking, not lifetime). */
+    public void incrementQuizAnswered(Long playerId, boolean correct) {
+        quizDeltaPerPlayer.compute(playerId, (id, arr) -> {
+            if (arr == null) arr = new int[]{0, 0};
+            arr[0]++;
+            if (correct) arr[1]++;
+            return arr;
+        });
+    }
+
+    /** Returns [answered, correct] for this game only. */
+    public int[] getQuizDelta(Long playerId) {
+        return quizDeltaPerPlayer.getOrDefault(playerId, new int[]{0, 0});
+    }
 }

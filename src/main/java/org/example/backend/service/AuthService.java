@@ -47,10 +47,10 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         UserAccount account = userAccountRepository.findByUsername(request.username())
-                .orElseThrow(() -> new IllegalArgumentException("Username atau password salah"));
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Username atau password salah"));
 
         if (!passwordEncoder.matches(request.password(), account.getPasswordHash())) {
-            throw new IllegalArgumentException("Username atau password salah");
+            throw new org.springframework.security.authentication.BadCredentialsException("Username atau password salah");
         }
 
         String token = jwtUtil.generateToken(account.getUsername());

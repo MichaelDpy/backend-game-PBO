@@ -14,6 +14,12 @@ import java.util.Optional;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long> {
     List<Room> findByExpiresAtBeforeAndStatusNot(LocalDateTime expiresAt, RoomStatus status);
+
+    /** Cari semua room berdasarkan status */
+    List<Room> findByStatus(RoomStatus status);
+
+    /** Cari room FINISHED yang finishedAt-nya sudah lebih dari cutoff (untuk dihapus) */
+    List<Room> findByStatusAndFinishedAtBefore(RoomStatus status, LocalDateTime cutoff);
     /**
      * Fetch room WITH players eagerly in one query.
      * Prevents LazyInitializationException when used outside a transaction.

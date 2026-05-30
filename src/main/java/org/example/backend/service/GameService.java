@@ -23,7 +23,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import org.springframework.scheduling.annotation.Scheduled;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -73,7 +72,7 @@ public class GameService {
 
         for (Room room : expiredRooms) {
             if (room.getStatus() != RoomStatus.FINISHED) {
-                room.setStatus(RoomStatus.FINISHED);
+                room.markFinished();
                 roomRepository.save(room);
 
                 // Broadcast ke frontend agar player tahu room ditutup
@@ -490,13 +489,14 @@ public class GameService {
 
         Room room = getRoom(roomCode);
 
-        // Update stats
+        // Update Player entity stats (kumulatif lifetime) dan catat di GameSession untuk endGame
         playerRepository.findById(answer.playerId()).ifPresent(p -> {
             p.setTotalQuizAnswered(p.getTotalQuizAnswered() + 1);
             if (correct) p.setTotalQuizCorrect(p.getTotalQuizCorrect() + 1);
             playerRepository.save(p);
-            updateAccountStats(p, false, 0, 0, 1, correct ? 1 : 0);
         });
+        // Catat quiz game ini di session agar endGame bisa kirim delta yang benar ke UserAccount
+        session.incrementQuizAnswered(answer.playerId(), correct);
 
         broadcastState(session, room);
 
@@ -634,9 +634,10 @@ public class GameService {
                 p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + w.getRoundsSurvived());
                 p.setTotalGrassCut(p.getTotalGrassCut() + w.getGrassCutTotal());
                 playerRepository.save(p);
-                // Pass quiz stats from Player entity (accumulated during the game)
+                // Use per-game quiz delta (not lifetime total) to avoid double-counting
+                int[] quizDelta = session.getQuizDelta(w.getPlayerId());
                 updateAccountStats(p, true, w.getGrassCutTotal(), w.getRoundsSurvived(),
-                        p.getTotalQuizAnswered(), p.getTotalQuizCorrect());
+                        quizDelta[0], quizDelta[1]);
             });
         });
 
@@ -649,11 +650,12 @@ public class GameService {
                     p.setTotalRoundsPlayed(p.getTotalRoundsPlayed() + s.getRoundsSurvived());
                     p.setTotalGrassCut(p.getTotalGrassCut() + s.getGrassCutTotal());
                     playerRepository.save(p);
+                    int[] quizDelta = session.getQuizDelta(s.getPlayerId());
                     updateAccountStats(p, false, s.getGrassCutTotal(), s.getRoundsSurvived(),
-                            p.getTotalQuizAnswered(), p.getTotalQuizCorrect());
+                            quizDelta[0], quizDelta[1]);
                 }));
 
-        room.setStatus(RoomStatus.FINISHED);
+        room.markFinished();
         roomRepository.save(room);
 
         broadcastState(session, room);
@@ -666,11 +668,7 @@ public class GameService {
         room.setCurrentRound(1);
         roomRepository.save(room);
 
-        // Reset semua player stats in-game
-        room.getPlayers().forEach(p -> {
-            p.setTotalGamesPlayed(p.getTotalGamesPlayed()); // sudah di-update di endGame
-        });
-
+        // Create a fresh session — clears all PlayerGameState so lives/stats start from zero
         GameSession session = new GameSession(roomCode);
         sessions.put(roomCode, session);
         spawnPlayers(session, room.getPlayers());

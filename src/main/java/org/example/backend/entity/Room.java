@@ -28,20 +28,30 @@ public class Room extends BaseEntity {
     private int currentRound = 0;
 
     private LocalDateTime createdAt;
-    private LocalDateTime expiresAt;   // baru
+    private LocalDateTime expiresAt;
+    private LocalDateTime finishedAt;  // dicatat saat status berubah ke FINISHED
 
     // Constructor
     public Room(String code) {
         this.code = code;
         this.status = RoomStatus.WAITING;
         this.createdAt = LocalDateTime.now();
-        this.expiresAt = LocalDateTime.now().plusMinutes(5);  // 5 menit
+        this.expiresAt = LocalDateTime.now().plusMinutes(5);
     }
 
     // Getter & Setter
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+    public LocalDateTime getFinishedAt() { return finishedAt; }
+    public void setFinishedAt(LocalDateTime finishedAt) { this.finishedAt = finishedAt; }
+
+    /** Tandai room sebagai selesai dan catat waktu selesainya */
+    public void markFinished() {
+        this.status = RoomStatus.FINISHED;
+        this.finishedAt = LocalDateTime.now();
+    }
 
 
 
