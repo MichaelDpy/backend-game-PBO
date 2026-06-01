@@ -65,7 +65,14 @@ public class GameSession {
     }
 
     public void resetForNewRound() {
-        initGrass();
+        // Reset grass grid tapi JANGAN reset rockGrid (batu penghalang harus tetap ada)
+        for (int y = 0; y < GRID_SIZE; y++) {
+            for (int x = 0; x < GRID_SIZE; x++) {
+                grassGrid[y][x] = true;
+                // rockGrid[y][x] tetap (tidak di-reset)
+                playerRockGrid[y][x] = false; // Reset batu player
+            }
+        }
         activeBombs.clear();
         activeQuestion = null;
         quizTargetPlayerId = null;

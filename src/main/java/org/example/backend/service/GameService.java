@@ -621,10 +621,11 @@ public class GameService {
         room.setCurrentRound(newRound);
         roomRepository.save(room);
 
-        // Tambah batu penghalang setiap kelipatan 3n+1 (ronde 4, 7, 10, 13...)
-        addObstacleRocksIfNeeded(session, newRound);
-
         session.resetForNewRound();
+
+        // Tambah batu penghalang setiap kelipatan 3n+1 (ronde 4, 7, 10, 13...)
+        // PENTING: Panggil SETELAH resetForNewRound() agar batu tidak di-clear
+        addObstacleRocksIfNeeded(session, newRound);
 
         // Restore alive=true for players who still have lives before respawning
         session.getPlayerStates().values().forEach(s -> {
