@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Define properties -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"/>
+    
+    <!-- Console Appender with Async for better performance -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <!-- Filter to reduce noise -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+    
+    <!-- Async Appender to prevent blocking -->
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="CONSOLE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+    
+    <!-- Production Profile: Minimal logging -->
+    <springProfile name="prod,production">
+        <!-- Root logger: WARN level (only warnings and errors) -->
+        <root level="WARN">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+        </root>
+        
+        <!-- Application logger: INFO level for important events only -->
+        <logger name="org.example.backend" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+        </logger>
+        
+        <!-- Disable noisy loggers -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.springframework.web" level="WARN"/>
+        <logger name="org.springframework.web.socket" level="ERROR"/>
+        <logger name="org.springframework.messaging" level="ERROR"/>
+        <logger name="org.apache.tomcat" level="ERROR"/>
+        <logger name="org.apache.catalina" level="ERROR"/>
+        <logger name="com.zaxxer.hikari" level="ERROR"/>
+    </springProfile>
+    
+    <!-- Development Profile: More verbose logging -->
+    <springProfile name="dev,development,default">
+        <!-- Root logger: INFO level -->
+        <root level="INFO">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+        </root>
+        
+        <!-- Application logger: DEBUG level for development -->
+        <logger name="org.example.backend" level="DEBUG" additivity="false">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+        </logger>
+        
+        <!-- Spring loggers -->
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.hibernate" level="INFO"/>
+        <logger name="org.springframework.web" level="INFO"/>
+    </springProfile>
+    
+    <!-- Fallback: If no profile is active, use WARN -->
+    <root level="WARN">
+        <appender-ref ref="ASYNC_CONSOLE"/>
+    </root>
+</configuration>

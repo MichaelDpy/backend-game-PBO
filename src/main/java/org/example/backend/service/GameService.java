@@ -22,6 +22,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class GameService {
+
+    private static final Logger log = LoggerFactory.getLogger(GameService.class);
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
@@ -81,7 +85,7 @@ public class GameService {
                 // Hapus session game jika ada
                 sessions.remove(room.getCode());
 
-                System.out.println("🕒 Room " + room.getCode() + " telah expired setelah 5 menit.");
+                log.info("Room {} expired after 5 minutes", room.getCode());
             }
         }
     }
@@ -237,7 +241,7 @@ public class GameService {
                     default        -> { }
                 }
             } catch (Exception e) {
-                System.err.println("Error in game tick for room " + roomCode + ": " + e.getMessage());
+                log.error("Error in game tick for room {}: {}", roomCode, e.getMessage());
             }
         }
     }
@@ -660,14 +664,14 @@ public class GameService {
         int n = (round - 1) / 3; // n=1 di ronde 4, n=2 di ronde 7, dst.
         int rocksToAdd = 2 * n;
 
-        System.out.println("🪨 Ronde " + round + " (n=" + n + "): Menambahkan " + rocksToAdd + " batu penghalang");
+        log.debug("Round {}: Adding {} obstacle rocks (n={})", round, rocksToAdd, n);
 
         for (int i = 0; i < rocksToAdd; i++) {
             boolean ok = session.addObstacleRockSafe(random);
             if (!ok) {
                 // Tidak ada posisi aman tersisa — matikan power-up batu untuk mencegah jalan buntu
                 session.setRockPowerUpEnabled(false);
-                System.out.println("⚠️ Grid terlalu penuh! Power-up batu dimatikan untuk mencegah jalan buntu.");
+                log.info("Grid too full at round {}. Rock power-up disabled to prevent dead ends.", round);
                 break;
             }
         }
