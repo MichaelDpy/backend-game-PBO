@@ -722,6 +722,12 @@ public class GameService {
 
     public void retryGame(String roomCode) {
         Room room = getRoom(roomCode);
+        
+        // Validasi: Minimal 2 players untuk main lagi
+        if (room.getPlayers().size() < 2) {
+            throw new IllegalStateException("Minimal 2 pemain untuk memulai game. Tidak bisa main lagi sendirian!");
+        }
+        
         room.setStatus(RoomStatus.PLAYING);
         room.setCurrentRound(1);
         roomRepository.save(room);
