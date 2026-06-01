@@ -23,7 +23,48 @@ Pemain berlomba memotong rumput di grid 10x10 sambil menjawab pertanyaan quiz un
 
 ---
 
-## 🛠️ Teknologi yang Digunakan
+## � Quick Start
+
+### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd projectkelasPBO/backend
+```
+
+### 2. Run Backend
+```bash
+# Menggunakan Maven Wrapper (Recommended)
+./mvnw spring-boot:run
+
+# Atau build JAR terlebih dahulu
+./mvnw clean package
+java -jar target/backend-0.0.1-SNAPSHOT.jar
+```
+
+### 3. Akses H2 Console (Optional)
+- URL: http://localhost:8080/h2-console
+- JDBC URL: `jdbc:h2:file:./data/lawnmowerdb`
+- Username: `sa`
+- Password: (kosong)
+
+### 4. Test API
+```bash
+# Register user baru
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"test1234"}'
+
+# Login
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"test1234"}'
+```
+
+Backend siap digunakan! 🎉
+
+---
+
+## �🛠️ Teknologi yang Digunakan
 
 ### Core Framework
 - **Spring Boot 3.4.5** - Framework utama untuk membangun aplikasi Java
@@ -44,7 +85,7 @@ Pemain berlomba memotong rumput di grid 10x10 sambil menjawab pertanyaan quiz un
   - Secure authentication tanpa session
   - Token expiration untuk keamanan
 
-### Real-time Communication
+### Real-time Communication (untuk multiplayer)
 - **Spring WebSocket** - Komunikasi real-time bidirectional
   - Mendukung STOMP protocol
   - Pub/Sub messaging untuk game state updates
@@ -672,13 +713,247 @@ jwt.expiration-ms=86400000
 
 ## 🧪 Testing
 
-### H2 Console
-Akses database console di: `http://localhost:8080/h2-console`
+### H2 Database Console
 
-**Connection details:**
-- JDBC URL: `jdbc:h2:file:./data/lawnmowerdb`
-- Username: `sa`
-- Password: (kosong)
+H2 Console adalah web interface untuk melihat dan mengelola database H2 secara langsung.
+
+📖 **[Baca Panduan Lengkap H2 Console](H2_CONSOLE_GUIDE.md)** untuk tutorial detail dengan screenshots dan troubleshooting.
+
+#### Quick Access:
+
+1. **Pastikan Backend Sudah Running**
+   ```bash
+   # Jalankan backend terlebih dahulu
+   cd backend
+   ./mvnw spring-boot:run
+   
+   # Atau jalankan JAR file
+   java -jar target/backend-0.0.1-SNAPSHOT.jar
+   ```
+
+2. **Buka Browser**
+   - Akses URL: **`http://localhost:8080/h2-console`**
+   - Akan muncul halaman login H2 Console
+
+3. **Login ke H2 Console**
+   
+   Masukkan informasi berikut di form login:
+   
+   | Field | Value |
+   |-------|-------|
+   | **Saved Settings** | Generic H2 (Embedded) |
+   | **Setting Name** | Generic H2 (Embedded) |
+   | **Driver Class** | `org.h2.Driver` |
+   | **JDBC URL** | `jdbc:h2:file:./data/lawnmowerdb` |
+   | **User Name** | `sa` |
+   | **Password** | *(kosongkan / tidak ada password)* |
+   
+   **Screenshot Login Form:**
+   ```
+   ┌─────────────────────────────────────────┐
+   │  H2 Console                             │
+   ├─────────────────────────────────────────┤
+   │  Saved Settings: [Generic H2 (Embedded)]│
+   │  Setting Name:   Generic H2 (Embedded)  │
+   │  Driver Class:   org.h2.Driver          │
+   │  JDBC URL:       jdbc:h2:file:./data/   │
+   │                  lawnmowerdb            │
+   │  User Name:      sa                     │
+   │  Password:       [                    ] │
+   │                                         │
+   │  [ Test Connection ]  [ Connect ]      │
+   └─────────────────────────────────────────┘
+   ```
+
+4. **Klik "Connect"**
+   - Anda akan masuk ke H2 Console interface
+   - Di sebelah kiri akan muncul daftar tabel database
+   
+   **Screenshot Main Interface:**
+   ```
+   ┌──────────────────────────────────────────────────────────┐
+   │  H2 Console - jdbc:h2:file:./data/lawnmowerdb            │
+   ├──────────┬───────────────────────────────────────────────┤
+   │ Tables   │  SQL Editor                                   │
+   │          │                                               │
+   │ ▼ PUBLIC │  SELECT * FROM USER_ACCOUNT;                  │
+   │   ├ USER_│                                               │
+   │   │ ACCOU│  [Run]  [Clear]  [History]                   │
+   │   ├ ROOM │                                               │
+   │   └ PLAYE│  Results:                                     │
+   │          │  ┌────┬──────────┬──────────┬─────────┐      │
+   │          │  │ ID │ USERNAME │ TOTAL_   │ TOTAL_  │      │
+   │          │  │    │          │ WINS     │ GAMES   │      │
+   │          │  ├────┼──────────┼──────────┼─────────┤      │
+   │          │  │ 1  │ player1  │ 5        │ 10      │      │
+   │          │  │ 2  │ player2  │ 3        │ 8       │      │
+   │          │  └────┴──────────┴──────────┴─────────┘      │
+   └──────────┴───────────────────────────────────────────────┘
+   ```
+
+#### Informasi Koneksi Database:
+
+```properties
+# Database Configuration
+spring.datasource.url=jdbc:h2:file:./data/lawnmowerdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# H2 Console Configuration
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+spring.h2.console.settings.web-allow-others=false
+```
+
+#### Tabel yang Tersedia:
+
+Setelah login, Anda akan melihat tabel-tabel berikut:
+
+1. **USER_ACCOUNT** - Data akun user (username, password, stats)
+2. **ROOM** - Data room game (code, status, round)
+3. **PLAYER** - Data pemain dalam room (name, color, stats)
+
+#### Query SQL yang Berguna:
+
+```sql
+-- Lihat semua user accounts
+SELECT * FROM USER_ACCOUNT;
+
+-- Lihat semua rooms
+SELECT * FROM ROOM;
+
+-- Lihat semua players
+SELECT * FROM PLAYER;
+
+-- Lihat user dengan statistik terbaik
+SELECT username, total_wins, total_games_played, 
+       (total_wins * 100.0 / total_games_played) as win_rate
+FROM USER_ACCOUNT
+WHERE total_games_played > 0
+ORDER BY win_rate DESC;
+
+-- Lihat rooms yang sedang aktif
+SELECT * FROM ROOM WHERE status = 'PLAYING';
+
+-- Lihat players dalam room tertentu
+SELECT p.name, p.color, p.is_host, r.code
+FROM PLAYER p
+JOIN ROOM r ON p.room_id = r.id
+WHERE r.code = 'ABC12345';
+
+-- Lihat quiz accuracy per user
+SELECT username, total_quiz_answered, total_quiz_correct,
+       (total_quiz_correct * 100.0 / total_quiz_answered) as accuracy
+FROM USER_ACCOUNT
+WHERE total_quiz_answered > 0
+ORDER BY accuracy DESC;
+```
+
+#### Troubleshooting H2 Console:
+
+**Problem 1: "Database not found"**
+```
+Error: Database "lawnmowerdb" not found
+```
+**Solusi:**
+- Pastikan backend sudah pernah dijalankan minimal 1 kali
+- Database file akan dibuat otomatis di folder `backend/data/`
+- Check apakah file `lawnmowerdb.mv.db` ada di folder `data/`
+
+**Problem 2: "Connection refused"**
+```
+Error: Connection refused
+```
+**Solusi:**
+- Pastikan backend sedang running di port 8080
+- Check dengan: `netstat -ano | findstr :8080` (Windows) atau `lsof -i :8080` (Linux/Mac)
+- Pastikan tidak ada aplikasi lain yang menggunakan port 8080
+
+**Problem 3: "H2 Console not enabled"**
+```
+Error: 404 Not Found
+```
+**Solusi:**
+- Check `application.properties`:
+  ```properties
+  spring.h2.console.enabled=true
+  spring.h2.console.path=/h2-console
+  ```
+- Restart backend setelah mengubah configuration
+
+**Problem 4: "Wrong JDBC URL"**
+```
+Error: Database may be already in use
+```
+**Solusi:**
+- Pastikan JDBC URL benar: `jdbc:h2:file:./data/lawnmowerdb`
+- Jangan gunakan `jdbc:h2:mem:lawnmowerdb` (in-memory)
+- Path relatif dari folder `backend/`
+
+#### Fitur H2 Console:
+
+1. **SQL Editor**
+   - Tulis dan jalankan query SQL
+   - Syntax highlighting
+   - Auto-complete untuk tabel dan kolom
+
+2. **Table Browser**
+   - Lihat struktur tabel (columns, types, constraints)
+   - Browse data dengan pagination
+   - Export data ke CSV/Excel
+
+3. **Query History**
+   - Lihat history query yang pernah dijalankan
+   - Re-run query sebelumnya
+
+4. **Database Schema**
+   - Visualisasi struktur database
+   - Foreign key relationships
+   - Indexes dan constraints
+
+#### Security Notes:
+
+⚠️ **PENTING untuk Production:**
+
+```properties
+# Development (Local)
+spring.h2.console.enabled=true
+spring.h2.console.settings.web-allow-others=false
+
+# Production (Deploy)
+spring.h2.console.enabled=false  # DISABLE H2 Console!
+```
+
+**Alasan:**
+- H2 Console memberikan akses penuh ke database
+- Tidak boleh diaktifkan di production environment
+- Gunakan hanya untuk development dan debugging
+
+#### Alternative: Database GUI Tools
+
+Selain H2 Console, Anda juga bisa menggunakan:
+
+1. **DBeaver** (Recommended)
+   - Download: https://dbeaver.io/
+   - Support semua database termasuk H2
+   - Fitur lebih lengkap dari H2 Console
+
+2. **IntelliJ IDEA Database Tools**
+   - Built-in di IntelliJ IDEA Ultimate
+   - Excellent integration dengan Spring Boot
+
+3. **DataGrip** (JetBrains)
+   - Professional database IDE
+   - Paid software
+
+**Koneksi dengan DBeaver:**
+```
+Driver: H2 Embedded
+URL: jdbc:h2:file:./backend/data/lawnmowerdb
+Username: sa
+Password: (kosong)
+```
 
 ### API Testing dengan cURL
 
@@ -704,7 +979,52 @@ curl -X POST http://localhost:8080/api/rooms \
 
 ## 📊 Database Schema
 
-### UserAccount
+### Entity Relationship Diagram (ERD)
+
+```
+┌─────────────────────┐
+│   USER_ACCOUNT      │
+├─────────────────────┤
+│ id (PK)             │
+│ username (UNIQUE)   │
+│ password_hash       │
+│ last_color          │
+│ total_games_played  │
+│ total_wins          │
+│ total_losses        │
+│ total_quiz_answered │
+│ total_quiz_correct  │
+│ total_grass_cut     │
+│ total_rounds_played │
+│ created_at          │
+│ updated_at          │
+└─────────────────────┘
+
+┌─────────────────────┐         ┌─────────────────────┐
+│       ROOM          │         │      PLAYER         │
+├─────────────────────┤         ├─────────────────────┤
+│ id (PK)             │◄────┐   │ id (PK)             │
+│ code (UNIQUE)       │     └───│ room_id (FK)        │
+│ status              │         │ name                │
+│ current_round       │         │ color               │
+│ created_at          │         │ is_host             │
+│ updated_at          │         │ session_id          │
+│ expires_at          │         │ account_username    │
+└─────────────────────┘         │ total_games_played  │
+                                │ total_wins          │
+                                │ total_losses        │
+                                │ total_quiz_answered │
+                                │ total_quiz_correct  │
+                                │ total_grass_cut     │
+                                │ total_rounds_played │
+                                │ created_at          │
+                                │ updated_at          │
+                                └─────────────────────┘
+```
+
+### Table Details
+
+#### 1. USER_ACCOUNT
 - id (PK)
 - username (unique)
 - passwordHash
@@ -824,7 +1144,24 @@ Lihat `pom.xml` untuk daftar lengkap dependencies.
 
 ---
 
-## 📄 License
+## � Dokumentasi Tambahan
+
+### File Panduan:
+- **[H2_CONSOLE_GUIDE.md](H2_CONSOLE_GUIDE.md)** - Panduan lengkap H2 Console dengan screenshots dan troubleshooting
+- **[PERBAIKAN_GAME_MECHANICS.md](../PERBAIKAN_GAME_MECHANICS.md)** - Dokumentasi perbaikan game mechanics (batu otomatis & collision)
+- **[TEST_GAME_MECHANICS.md](../TEST_GAME_MECHANICS.md)** - Test scenarios untuk game mechanics
+- **[DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md)** - Panduan deployment ke Railway/cloud
+- **[CARA_MENJALANKAN.md](../CARA_MENJALANKAN.md)** - Panduan menjalankan aplikasi lengkap
+
+### Quick Links:
+- **H2 Console:** http://localhost:8080/h2-console
+- **API Base URL:** http://localhost:8080/api
+- **WebSocket URL:** http://localhost:8080/ws
+- **Swagger UI:** (jika enabled) http://localhost:8080/swagger-ui.html
+
+---
+
+## �📄 License
 
 Project ini dibuat untuk keperluan edukasi - Tugas UAS Pemrograman Berorientasi Objek.
 

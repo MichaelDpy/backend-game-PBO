@@ -360,11 +360,42 @@ public class GameService {
         }
 
         // Cek tabrakan dengan pemain lain
-        Optional<Long> otherPlayer = session.getPlayerAtCell(newX, newY);
-        if (otherPlayer.isPresent()) {
-            // Yang menabrak hancur, yang ditabrak aman
-            state.setCrashed(true);
-            state.setAlive(false);
+        Optional<Long> otherPlayerId = session.getPlayerAtCell(newX, newY);
+        if (otherPlayerId.isPresent()) {
+            PlayerGameState otherPlayer = session.getPlayerStates().get(otherPlayerId.get());
+            if (otherPlayer != null) {
+                // Logika collision berdasarkan arah hadap:
+                // 1. Jika kedua pemain saling berhadapan (head-on collision) → salah satu mati (random)
+                // 2. Jika pemain A menghadap ke pemain B, tapi B menghadap ke arah lain → A yang mati
+                
+                boolean currentPlayerFacingOther = isFacingPlayer(state, otherPlayer);
+                boolean otherPlayerFacingCurrent = isFacingPlayer(otherPlayer, state);
+                
+                if (currentPlayerFacingOther && otherPlayerFacingCurrent) {
+                    // Head-on collision: salah satu mati secara random
+                    if (random.nextBoolean()) {
+                        state.setCrashed(true);
+                        state.setAlive(false);
+                    } else {
+                        otherPlayer.setCrashed(true);
+                        otherPlayer.setAlive(false);
+                    }
+                } else if (currentPlayerFacingOther) {
+                    // Pemain ini menghadap ke pemain lain, tapi pemain lain tidak menghadap ke sini
+                    // → Pemain ini yang mati
+                    state.setCrashed(true);
+                    state.setAlive(false);
+                } else if (otherPlayerFacingCurrent) {
+                    // Pemain lain menghadap ke pemain ini, tapi pemain ini tidak menghadap ke sana
+                    // → Pemain lain yang mati
+                    otherPlayer.setCrashed(true);
+                    otherPlayer.setAlive(false);
+                } else {
+                    // Tidak ada yang saling menghadap (side collision) → yang bergerak mati
+                    state.setCrashed(true);
+                    state.setAlive(false);
+                }
+            }
             return;
         }
 
@@ -398,6 +429,24 @@ public class GameService {
                 }
             }
         }
+    }
+
+    /**
+     * Cek apakah player1 menghadap ke arah player2
+     */
+    private boolean isFacingPlayer(PlayerGameState player1, PlayerGameState player2) {
+        int dx = player2.getPosX() - player1.getPosX();
+        int dy = player2.getPosY() - player1.getPosY();
+        String dir = player1.getDirection();
+        
+        // Cek apakah arah hadap player1 menuju ke posisi player2
+        return switch (dir) {
+            case "right" -> dx > 0 && dy == 0;
+            case "left" -> dx < 0 && dy == 0;
+            case "down" -> dy > 0 && dx == 0;
+            case "up" -> dy < 0 && dx == 0;
+            default -> false;
+        };
     }
 
     // ===================== POWER-UP ACTIVATION =====================
@@ -596,20 +645,28 @@ public class GameService {
     }
 
     private void addObstacleRocksIfNeeded(GameSession session, int round) {
-        // Rocks appear at rounds that satisfy round = 3n+1, for n = 1, 2, 3, ...
-        // i.e. rounds 4, 7, 10, 13, ...
-        // At each such round, add 2n rocks (n=1 → 2, n=2 → 4, n=3 → 6, ...)
+        // Batu muncul di ronde 3n+1 dimana n = 1, 2, 3, ...
+        // Yaitu ronde 4, 7, 10, 13, 16, ...
+        // Di setiap ronde tersebut, tambahkan 2n batu
+        // Ronde 4 (n=1) → 2 batu
+        // Ronde 7 (n=2) → 4 batu
+        // Ronde 10 (n=3) → 6 batu
+        // dst.
+        
         if (round < 4) return;
         if ((round - 1) % 3 != 0) return;
 
-        int n = (round - 1) / 3; // n=1 at round 4, n=2 at round 7, etc.
+        int n = (round - 1) / 3; // n=1 di ronde 4, n=2 di ronde 7, dst.
         int rocksToAdd = 2 * n;
+
+        System.out.println("🪨 Ronde " + round + " (n=" + n + "): Menambahkan " + rocksToAdd + " batu penghalang");
 
         for (int i = 0; i < rocksToAdd; i++) {
             boolean ok = session.addObstacleRockSafe(random);
             if (!ok) {
-                // No safe position left — disable rock power-up to prevent dead ends
+                // Tidak ada posisi aman tersisa — matikan power-up batu untuk mencegah jalan buntu
                 session.setRockPowerUpEnabled(false);
+                System.out.println("⚠️ Grid terlalu penuh! Power-up batu dimatikan untuk mencegah jalan buntu.");
                 break;
             }
         }
